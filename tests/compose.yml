@@ -1,0 +1,38 @@
+name: lunixi-prestashop-acceptance
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: test-only-lunixi-db-password
+      MARIADB_DATABASE: prestashop
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+  shop:
+    image: ${PRESTASHOP_IMAGE:-prestashop/prestashop:9.2.0}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:18092:80'
+    environment:
+      LUNIXI_NATIVE_TEST: '1'
+      PS_INSTALL_AUTO: '1'
+      PS_DEV_MODE: '1'
+      PS_DOMAIN: localhost:18092
+      PS_FOLDER_ADMIN: admin-lunixi
+      PS_FOLDER_INSTALL: install-lunixi
+      PS_LANGUAGE: en
+      PS_COUNTRY: tr
+      DB_SERVER: db
+      DB_NAME: prestashop
+      DB_USER: root
+      DB_PASSWD: test-only-lunixi-db-password
+      ADMIN_MAIL: merchant@example.test
+      ADMIN_PASSWD: test-only-Lunixi-Admin-9!
+      LUNIXI_ENCRYPTION_KEY: dGVzdC1vbmx5LWVuY3J5cHRpb24ta2V5LTMyLWJ5dGU=
+    volumes:
+      - ../build/lunixipay:/var/www/html/modules/lunixipay
+      - .:/lunixi-tests:ro

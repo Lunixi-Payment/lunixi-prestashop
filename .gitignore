@@ -1,0 +1,11 @@
+/vendor/
+/tools/vendor/
+/build/
+/dist/
+/tmp/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+/phpunit.result.cache

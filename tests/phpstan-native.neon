@@ -1,0 +1,11 @@
+parameters:
+    level: 8
+    paths:
+        - /var/www/html/modules/lunixipay/src
+        - /var/www/html/modules/lunixipay/controllers
+        - /var/www/html/modules/lunixipay/lunixipay.php
+    bootstrapFiles:
+        - /lunixi-tests/phpstan-bootstrap.php
+    scanDirectories:
+        - /var/www/html/modules/lunixipay/sdk
+    tmpDir: /tmp/lunixi-prestashop-phpstan

@@ -1,0 +1,18 @@
+{
+    "name": "lunixi/prestashop",
+    "description": "Lunixi native payment module for PrestaShop 8 and 9",
+    "type": "prestashop-module",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.1",
+        "ext-sodium": "*",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-pdo": "*",
+        "lunixi/php-sdk": "^0.29.3"
+    },
+    "config": {
+        "allow-plugins": false,
+        "sort-packages": true
+    }
+}

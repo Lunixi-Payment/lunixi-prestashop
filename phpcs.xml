@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<ruleset name="Lunixi PrestaShop">
+  <description>PSR-12 with required PrestaShop global controller entry points.</description>
+  <file>lunixipay.php</file><file>src</file><file>controllers</file><file>autoload.php</file><file>tools/build.php</file><file>tools/cron.php</file><file>scoper.inc.php</file>
+  <rule ref="PSR12"/>
+  <rule ref="PSR1.Classes.ClassDeclaration.MissingNamespace">
+    <exclude-pattern>*/lunixipay.php</exclude-pattern><exclude-pattern>*/controllers/*</exclude-pattern>
+  </rule>
+  <rule ref="PSR1.Files.SideEffects.FoundWithSymbols"><exclude-pattern>*/lunixipay.php</exclude-pattern><exclude-pattern>*/tools/build.php</exclude-pattern></rule>
+  <rule ref="Generic.Files.LineLength"><properties><property name="lineLimit" value="220"/><property name="absoluteLineLimit" value="0"/></properties></rule>
+</ruleset>

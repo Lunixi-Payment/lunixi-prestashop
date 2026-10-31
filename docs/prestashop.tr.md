@@ -1,0 +1,110 @@
+---
+title: PrestaShop
+description: PrestaShop 8/9 için native Lunixi ödeme modülü — kurulum ZIP’i, şifreli bilgiler, gömülü/yönlendirmeli form, doğrulanmış webhook ve kalıcı tahsilat/iade işlemleri.
+---
+
+
+# PrestaShop
+
+`lunixipay`, PrestaShop’un native ödeme/sipariş akışını Lunixi’ye bağlar. Mağaza gömülü veya yönlendirmeli Lunixi formunu seçer. Açık yöntemler, taksitler, uygun alternatif yöntemler, sigorta ve çoklu kart Lunixi’den yönetilir. Modül PAN/CVV toplamaz.
+
+Mağaza ZIP’i namespace ile izole [PHP SDK](/sdks/php) içerir. İmza, tam sayı tutar, kalıcı deneme, webhook, split-parent kanıtı ve güvenli retry ortak Commerce çekirdeğindedir. Mağaza sunucusunda Composer gerekmez.
+
+## Gereksinimler ve kurulum
+
+- Platformun desteklediği PHP ile **PrestaShop 8.1+ / 9.x**; modül için **64-bit PHP 8.1+**.
+- Sodium, cURL, JSON, PDO MySQL; bütün mağaza tabloları **InnoDB**.
+- HTTPS mağaza/webhook; kayıtlı Lunixi merchant/key ve webhook secret.
+- Veritabanı/public web dizini dışında, bağımsız ve yedekli 32 bayt şifreleme anahtarı.
+
+Kaynak: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). 0.1.0 kaynak/modül yayını, PrestaShop Addons onayı anlamına gelmez. Native doğrulama PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11’de sentetik gateway ile çalıştırıldı. CI matrisinde 8.2.4 de vardır; bağımsız 8.x doğrulama iddiasından önce o koşum geçmelidir.
+
+Sunucuda anahtar üretin:
+
+```bash
+php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
+```
+
+Secret manager üzerinden PHP worker ortamına `LUNIXI_ENCRYPTION_KEY` olarak ekleyin. Veritabanı/cookie/private/webhook anahtarından türetmeyin. Yükseltme ve yeniden başlatmada koruyun; kayıp anahtar geçmiş şifreli bilgileri okunamaz yapar.
+
+**Module Manager → Upload a module** üzerinden **`lunixipay-0.1.0.zip`** yükleyip **Lunixi Payments** modülünü kurun. ZIP kökü `lunixipay/` olmalıdır. GitHub kaynak arşivi, build edilmiş kurulum ZIP’i değildir.
+
+## Üye işyeri ayarları
+
+Multistore’da tek mağaza seçip kaydedin:
+
+| Ayar | Açıklama |
+| --- | --- |
+| Merchant ID | Tahsilat kanıtının bağlandığı üye işyeri kimliği |
+| Key ID / özel Ed25519 anahtarı | Kayıtlı sunucu imza bilgileri |
+| Webhook secret | Merchant webhook bağlantısıyla eşleşen secret |
+| Form modu | `pay.lunixi.com` yönlendirmesi veya gömülü Lunixi formu |
+| Önce provizyon, sonra tahsilat | Capture’a kadar siparişi beklemede tutar |
+
+Secret alanları tekrar gösterilmez; boş bırakmak kayıtlı değeri korur. Bilgiler bağımsız sunucu anahtarıyla authenticated encryption kullanılarak saklanır. Kayıt için native modül düzenleme yetkisi ve admin CSRF gerekir.
+
+Panelde gösterilen **tam webhook URL’sini**, `shop_id` dahil, Lunixi’ye kaydedin. Dokümante merchant ödeme olaylarına abone olun. Para birimi/ülke/kargo/müşteri grubu kısıtlarını native PrestaShop ödeme tercihlerinden yönetin.
+
+Gateway sabit `https://api-gateway.lunixi.com` origin’idir; kullanıcı keyfi URL veremez. TEST/LIVE erişimini merchant anahtarı belirler.
+
+## Ödeme ve sipariş durumu
+
+Tek **Lunixi ile güvenle öde** seçeneği görünür. Token gösterilmeden native müşteri/misafir session’ı, sipariş sahipliği ve mağaza kimliği doğrulanır. İlk ödeme POST’u ayrıca müşteri CSRF token’ı ister.
+
+Adaptör ödenmemiş native sipariş oluşturur, aynı sepetin sipariş dönüşümünü kilitler, DECIMAL toplamı string okur ve ağ çağrısından önce denemeyi kalıcı kaydeder. Zaman aşımı aynı anahtarı korur; tekrar sessizce yeni tahsilat açmaz.
+
+- Yönlendirmeli mod yalnız `https://pay.lunixi.com/payment/<token>` adresine gider.
+- Gömülü mod, resmi `https://cdn.lunixi.com/lunixi-checkout.min.js` dosyasını platformun asset API’siyle yükleyip güvenli JSON ile bağlar. Gateway HTML’i basılmaz.
+- Provizyon ve kısmi capture beklemede kalır. Ödenmiş geçişi tam, doğrulanmış tahsilat ister.
+
+Yöntemleri merchant formu belirler; ayrıca yöntem aç/kapa anahtarı üretilmez. CSP’de resmi formun gerektirdiği origin’lere izin verin.
+
+> 
+0.1.0 sepet başına tek kargo paketini destekler. Çok paketli/multishipping sepet finansal çağrıdan önce reddedilir. Toplam, para birimi, merchant veya form ayarını değiştirmeden mevcut denemeyi sonuçlandırın. Süresi dolmuş/eksik token yeni tahsilat yetkisi değildir.
+
+
+Native hesaplama hassasiyetindeki toplam, alt birime çevrilmeden PrestaShop’un kesin decimal kütüphanesiyle yuvarlanır; para birimi hassasiyeti gateway ISO üssüyle eşleşmelidir. Alt birimden küçük kesirli half-odd yuvarlama, native kütüphane desteklemediği için mutabakat gerektirir. Rotasyonda şifreli credential geçmişi ve iki önceki webhook secret korunur; ödeme geçmişi bulunan mağaza başka merchant ID’ye bağlanamaz.
+
+## Doğrulanmış webhook ve mutabakat
+
+SDK sınırlanmış özgün baytlarda v2 imza, zaman, kimlik ve replay/çakışma kontrolü yapar; kalıcı intent’i eşleştirip yetkili ödeme GET çağrısı yapar. Tarayıcı dönüş parametreleri siparişi ödenmiş saydıramaz.
+
+SDK ledger’ı **PrestaShop’un kullandığı aynı primary PDO bağlantısına** bağlanır. Olay kaydı ile native sipariş/ödeme/geçmiş/fatura/stok değişiklikleri tek InnoDB transaction’ında commit olur. Hata hepsini geri alır; replay ikinci ödeme/fatura oluşturmaz. Belirsiz, kısmi veya tutarsız tahsilat teslimat başlatmaz.
+
+Split başarısı doğru parent kimliği, dengeli toplam, tam tahsilat ve compensation/mutabakat sorunu olmamasını ister. Tahsil edilen tek bacak yetmez. Müşteri taksit ücreti authenticated yanıttaki kalıcı sipariş fingerprint’iyle doğrulanır. Native sepet tutarı bir kez kaydedilir; brüt tahsilat/iade ledger/panelde ayrıca tutulur.
+
+Native durum/download e-postaları transaction sırasında şifreli outbox’a alınır. Bakımı birkaç dakikada bir zamanlayın:
+
+```bash
+php /magaza/yolu/modules/lunixipay/tools/cron.php /magaza/yolu
+```
+
+İş, authenticated mutabakat sorgularını ve bildirim kuyruğunu çalıştırır. Hata/deferred sonuçlarını izleyin. E-posta commit sonrası en az bir kez teslim edilir; worker hatası bildirimi tekrarlayabilir, ödeme geçişini tekrarlamaz. Üçüncü taraf hook’ları da transactional depolama ve commit sonrası yan etki kullanmalıdır.
+
+## Tahsilat, iade, provizyon iptali
+
+Native siparişin Lunixi panelinde **Mutabakat**, **Tahsil et**, **İade**, **Provizyonu iptal et** bulunur. POST, admin CSRF, sipariş/modül düzenleme yetkisi ve mağaza ilişkisi gerekir.
+
+Sipariş para biriminde kesin ondalık tutar girin. Native işlem kimliği çağrıdan önce kaydedilir; aynı ID başka tutar/eylem için kullanılamaz. Belirsiz işlem özgün salt okunur parametreleriyle görünür; authenticated tahsilat farkı doğrulanana kadar yeni finansal ID engellenir. HTTP 2xx onay değildir. Aynı ID/tutarla tekrar deneyin veya önce mutabakat yapın.
+
+> 
+Gateway iadesi yalnız fon aktarır. Ürün/vergi alacak dekontu ve stok iadesini muhasebe politikanıza göre ayrıca oluşturun; gateway iadesini tekrarlamayın. Modül parasal iadeye keyfi ürün/KDV dağıtımı yapmaz. İade desteklemeyen split yöntemlerinde mutabakat gerekebilir.
+
+
+## Kaldırma ve saklama
+
+Kaldırma modülü kapatıp admin sekmesini kaldırır; denemeleri, receipt’leri, işlemleri, şifreli bilgileri, outbox’ı ve native finansal durumları korur. Yeniden kurulum kimlikleri değiştirmez. İade/mutabakat saklama süresi boyunca şifreleme anahtarını ve merchant erişimini tutun. Veri silme ayrıca incelenen bir saklama işlemidir.
+
+## Kaynak build ve kontroller
+
+```bash
+composer install --working-dir=tools --no-interaction
+php tools/build.php
+php tools/check-artifact.php
+```
+
+Varsayılan build public `lunixi/php-sdk:^0.29.3` paketini çözer. Registry sürümü henüz yayımlanmadıysa `php tools/build.php /tam/yol/lunixi-php` ile incelenmiş kaynak verin. Build yolu ZIP’e çıkmaz. PHP-Scoper SDK’yı `Lunixi\PrestaShop\Vendor\Lunixi\Sdk` altında izole eder; kardeş kaynak, scope’suz alias veya site genelinde Composer gerektirmez.
+
+Kontroller PHPCS, gerçek native platform üzerinde PHPStan level 8, Composer audit, ZIP/secret sınır kontrolü ve sentetik gateway’li gerçek platform/veritabanı testlerini içerir. Gerçek DB trigger’ıyla rollback, aynı retry anahtarı, şifreleme, sahiplik/CSRF, webhook/GET, replay, capture/kısmi capture/void/iade ve kaldırmada geçmiş doğrulanır. Yeniden kurulum ayrı PHP sürecinde test edilir.
+
+Canlı işlemden önce kayıtlı TEST merchant ile uçtan uca ödeme/webhook/iade ve mağaza tema kabul testi yapın. [README](https://github.com/Lunixi-Payment/lunixi-prestashop) · [Güvenlik](https://github.com/Lunixi-Payment/lunixi-prestashop/blob/main/SECURITY.md).

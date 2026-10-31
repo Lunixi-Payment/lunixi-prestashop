@@ -1,0 +1,63 @@
+name: PrestaShop module
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          extensions: sodium,curl,json,pdo_mysql,zip,intl,gd,bcmath
+          tools: composer:v2
+      - run: composer install --working-dir=tools --no-interaction --prefer-dist
+      - run: composer audit --working-dir=tools
+      - run: php tools/vendor/bin/phpcs --standard=phpcs.xml
+      - run: php tools/build.php
+      - run: php tools/check-artifact.php
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: merchant-zip
+          path: dist/lunixipay-0.1.0.zip
+  native:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: ['8.2.4', '9.2.0']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          extensions: sodium,curl,json,pdo_mysql,zip,intl,gd,bcmath
+          tools: composer:v2
+      - run: composer install --working-dir=tools --no-interaction --prefer-dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: merchant-zip
+          path: dist
+      - run: mkdir -p build && unzip dist/lunixipay-0.1.0.zip -d build
+      - run: docker compose -f tests/compose.yml up -d
+        env:
+          PRESTASHOP_IMAGE: prestashop/prestashop:${{ matrix.platform }}
+      - name: Wait for native installation
+        run: |
+          for attempt in $(seq 1 90); do
+            if docker compose -f tests/compose.yml exec -T shop test -f app/config/parameters.php && docker compose -f tests/compose.yml exec -T shop test ! -d install-lunixi; then exit 0; fi
+            sleep 5
+          done
+          docker compose -f tests/compose.yml logs --tail 80 shop
+          exit 1
+      - run: docker compose -f tests/compose.yml exec -T shop php /lunixi-tests/native.php /var/www/html
+      - run: docker compose -f tests/compose.yml exec -T shop php /lunixi-tests/reinstall.php /var/www/html
+      - run: docker compose -f tests/compose.yml exec -T shop php /lunixi-tests/http.php http://localhost localhost:18092
+      - run: docker compose -f tests/compose.yml cp tools/vendor/phpstan/phpstan/phpstan.phar shop:/tmp/phpstan.phar
+      - run: docker compose -f tests/compose.yml exec -T -e PRESTASHOP_ROOT=/var/www/html shop php /tmp/phpstan.phar analyse -c /lunixi-tests/phpstan-native.neon --no-progress
+      - if: always()
+        run: docker compose -f tests/compose.yml down --volumes

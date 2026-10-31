@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Exact reviewed synthetic test fixture, never a merchant credential"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = ['''(?:^|/)tests/compose\.yml$''']
+regexTarget = "line"
+regexes = ['''\A\s*\QLUNIXI_ENCRYPTION_KEY: dGVzdC1vbmx5LWVuY3J5cHRpb24ta2V5LTMyLWJ5dGU=\E\s*\z'''] # gitleaks:allow
