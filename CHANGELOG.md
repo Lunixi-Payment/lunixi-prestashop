@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 — 2026-10-31
+
+- Fix PrestaShop 8 employee administration by using the native ObjectModel `getAssociatedShops()` API shared with PrestaShop 9; retain authenticated session, order-edit permission and strict integer shop association checks.
+- Add real native employee/profile/shop/session regression cases for allowed own-shop access, foreign-shop denial, read-only denial and logged-out denial before financial IO. Verify PHPStan against both native source roots.
+- Payment calculations, gateway signing and the bundled PHP SDK 0.29.3 are unchanged.
+
 ## 0.1.2 — 2026-10-31
 
 - Verify Turkish Shop and Admin catalogs through the actual native locale loader; do not ask an already-English BO translator to load an uninitialized locale after module installation. No financial behavior changes.

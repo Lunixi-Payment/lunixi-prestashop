@@ -23,9 +23,10 @@ final class Access
     }
     public static function employee(\Context $context, \Order $order): void
     {
+        // ObjectModel exposes this association API on both PrestaShop 8 and 9.
         if (
             !$context->employee || !$context->employee->isLoggedBack() || !$context->employee->can('edit', 'AdminOrders') ||
-            !in_array((int) $order->id_shop, array_map('intval', $context->employee->getAssociatedShopIds()), true)
+            !in_array((int) $order->id_shop, $context->employee->getAssociatedShops(), true)
         ) {
             throw new \RuntimeException('Order administration permission denied.');
         }

@@ -116,6 +116,7 @@ final class NativeAcceptance
         foreach ([['GET', 't', 't', true], ['POST', 'bad', 't', true], ['POST', 't', 't', false]] as $args) {
             $this->rejects(fn() => Access::post(...$args), 'CSRF/capability boundary');
         }
+        $this->employeeAccess($context, $order);
         $transport = new NativeGateway();
         $sdk = new LunixiClient(new SdkConfiguration(['baseUrl' => Settings::GATEWAY, 'keyId' => 'mk_test_sk_synthetic_native',
             'privateKey' => base64_encode(sodium_crypto_sign_secretkey($seed)), 'maxRetries' => 0]), $transport);
@@ -206,6 +207,87 @@ final class NativeAcceptance
         $this->ok($module->uninstall(), 'native uninstall succeeds');
         $this->ok(Storage::attempt(Bridge::key($order)) !== null, 'uninstall preserves financial history');
         echo 'PrestaShop ' . _PS_VERSION_ . ': ' . $this->assertions . " native assertions passed; synthetic gateway, no funds moved.\n";
+    }
+    private function employeeAccess(Context $context, Order $order): void
+    {
+        global $kernel;
+        $savedEmployee = $context->employee;
+        $savedCookie = $context->cookie;
+        $container = $kernel->getContainer();
+        $requestStack = version_compare(_PS_VERSION_, '9.0.0', '>=') ? $container->get('request_stack') : null;
+        $securitySession = null;
+        if ($requestStack) {
+            $securitySession = new \Symfony\Component\HttpFoundation\Session\Session(new \Symfony\Component\HttpFoundation\Session\Storage\NativeSessionStorage(['name' => 'LUNIXI_NATIVE_ACL', 'use_cookies' => false, 'cache_limiter' => '']));
+            $securitySession->start();
+            $request = \Symfony\Component\HttpFoundation\Request::create('http://localhost/admin/native-acl');
+            $request->setSession($securitySession);
+            $request->cookies->set($securitySession->getName(), $securitySession->getId());
+            $requestStack->push($request);
+        }
+        $employees = [];
+        $sessions = [];
+        $profile = new Profile();
+        foreach (Language::getLanguages(false) as $language) { $profile->name[(int) $language['id_lang']] = 'Lunixi native read only'; }
+        if (!$profile->add()) { throw new RuntimeException('Employee profile fixture failed.'); }
+        $foreignShop = new Shop();
+        $foreignShop->name = 'Lunixi native ACL shop'; $foreignShop->id_shop_group = 1;
+        $foreignShop->id_category = 2; $foreignShop->theme_name = $context->shop->theme_name;
+        $foreignShop->active = true;
+        if (!$foreignShop->add()) { throw new RuntimeException('Employee foreign-shop fixture failed.'); }
+        try {
+            $authenticate = function (Employee $employee) use ($context, $securitySession, $container, &$sessions): void {
+                $context->employee = $employee;
+                Cache::clean('isLoggedBack' . $employee->id);
+                if ($securitySession) {
+                    $entity = $container->get('doctrine')->getManager()->find(\PrestaShopBundle\Entity\Employee\Employee::class, (int) $employee->id);
+                    if (!$entity) { throw new RuntimeException('Native employee security entity missing.'); }
+                    $securitySession->set('_security_main', serialize(new \Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken($entity, 'main', $entity->getRoles())));
+                } else {
+                    $context->cookie = new Cookie('lunixi_native_admin_' . $employee->id);
+                    $context->cookie->id_employee = (int) $employee->id;
+                    $context->cookie->passwd = $employee->passwd;
+                    $session = new EmployeeSession();
+                    $context->cookie->registerSession($session); $sessions[] = $session;
+                }
+                $this->ok((bool) $employee->isLoggedBack(), 'native employee session authenticated');
+            };
+            foreach ([[1, 1], [1, (int) $foreignShop->id], [(int) $profile->id, 1]] as [$profileId, $shopId]) {
+                $employee = new Employee(); $employee->firstname = 'Synthetic'; $employee->lastname = 'ACL';
+                $employee->email = 'native-acl-' . bin2hex(random_bytes(8)) . '@example.test';
+                $employee->id_lang = (int) $context->language->id; $employee->id_profile = $profileId;
+                $employee->passwd = password_hash('test-only-admin-password', PASSWORD_BCRYPT);
+                $employee->active = true; $employee->id_shop_list = [$shopId];
+                if (!$employee->add()) { throw new RuntimeException('Native employee fixture failed.'); }
+                $employees[] = $employee;
+            }
+            $allowed = new Employee((int) $employees[0]->id);
+            $authenticate($allowed);
+            $this->ok($allowed->can('edit', 'AdminOrders') && in_array(1, $allowed->getAssociatedShops(), true), 'native editable employee has integer shop association');
+            Access::employee($context, $order);
+            $this->ok(true, 'native authenticated employee can administer own-shop order');
+            $foreign = new Employee((int) $employees[1]->id);
+            $authenticate($foreign);
+            $this->ok($foreign->can('edit', 'AdminOrders') && !in_array((int) $order->id_shop, $foreign->getAssociatedShops(), true), 'native editable employee has only foreign-shop association');
+            $this->rejects(fn() => Access::employee($context, $order), 'native foreign-shop employee denied before financial IO');
+            $readOnly = new Employee((int) $employees[2]->id);
+            $authenticate($readOnly);
+            $this->ok(!$readOnly->can('edit', 'AdminOrders') && in_array(1, $readOnly->getAssociatedShops(), true), 'native same-shop profile lacks order edit permission');
+            $this->rejects(fn() => Access::employee($context, $order), 'native read-only employee denied before financial IO');
+            if ($securitySession) { $securitySession->remove('_security_main'); }
+            $context->employee = $allowed;
+            if (!$securitySession) { $context->cookie = new Cookie('lunixi_native_logged_out'); }
+            Cache::clean('isLoggedBack' . $allowed->id);
+            $this->rejects(fn() => Access::employee($context, $order), 'native previously allowed employee denied without authentication before financial IO');
+            $this->ok(!$allowed->isLoggedBack(), 'native employee has no authenticated session after logout');
+        } finally {
+            if ($requestStack) { $requestStack->pop(); $securitySession->invalidate(); }
+            $context->employee = $savedEmployee; $context->cookie = $savedCookie;
+            foreach ($sessions as $session) { $session->delete(); }
+            foreach ($employees as $employee) { $employee->delete(); }
+            $profile->delete(); $foreignShop->delete();
+        }
+        $this->ok((new ReflectionMethod(Employee::class, 'getAssociatedShops'))->getDeclaringClass()->getName() === 'ObjectModelCore', 'shared native ObjectModel shop-association API used');
+        echo 'Native employee ACL: ' . _PS_VERSION_ . ' Employee=' . (new ReflectionClass(Employee::class))->getParentClass()->getFileName() . '; association=' . (new ReflectionMethod(Employee::class, 'getAssociatedShops'))->getFileName() . "\n";
     }
     private function event(Bridge $bridge, string $paymentId, string $id)
     {
