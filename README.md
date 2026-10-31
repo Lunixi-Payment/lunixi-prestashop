@@ -2,6 +2,10 @@
 
 # Lunixi for PrestaShop
 
+**Verified public merchant ZIP 0.1.4:** [`lunixipay-0.1.4.zip`](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.4/lunixipay-0.1.4.zip) · [SHA256SUMS](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.4/SHA256SUMS) · [Release v0.1.4](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v0.1.4). The CI-built installation package was downloaded and verified on 2026-10-31. Use this asset rather than GitHub's automatic source archive.
+
+Public CI ZIP SHA256: `49baf53288856166175afcbf8413899ad98a358ac32dde6909c9946996f538c9`.
+
 [English](README.md) · [Türkçe](README.tr.md) · [Documentation](https://docs.lunixi.com/sdks/prestashop)
 
 Native payment module for **PrestaShop 8.1+ / 9.x**, version **0.1.4**. The existing Lunixi form opens on the merchant website by default; optional hosted checkout uses the validated backend `paymentPageUrl`. Payment methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in the Lunixi dashboard/form. The module never collects PAN/CVV.
@@ -85,7 +89,7 @@ composer install --working-dir=tools --no-interaction
 php tools/build.php
 ```
 
-The default build resolves `lunixi/php-sdk:0.29.5` from its public registry. If that SDK version has not yet been published, explicitly supply a reviewed SDK checkout:
+The default build resolves the published `lunixi/php-sdk:0.29.5` package. Maintainers can instead explicitly supply a reviewed SDK checkout:
 
 ```bash
 php tools/build.php /absolute/path/to/lunixi-php
