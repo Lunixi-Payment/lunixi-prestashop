@@ -17,7 +17,7 @@ The standalone merchant ZIP bundles a namespace-isolated [PHP SDK](/sdks/php). S
 - HTTPS storefront/webhook, registered Lunixi merchant/key and webhook secret.
 - A separate, backed-up 32-byte server encryption key outside the database/public web root.
 
-Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Version 0.1.4 is a source/module release; this does not imply PrestaShop Addons approval. The recorded 0.1.3 baseline acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The same 65-assertion native suite also passed on official 8.2.4 in an isolated local PHP 8.3.6/MariaDB fixture. Both official-image native CI jobs remain independent release gates.
+Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Prepared 0.1.5 is a candidate; verified public 0.1.4 remains available until publication. Neither implies PrestaShop Addons approval. The recorded 0.1.3 baseline acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The same 65-assertion native suite also passed on official 8.2.4 in an isolated local PHP 8.3.6/MariaDB fixture. Both official-image native CI jobs remain independent release gates.
 
 Generate the server key locally:
 
@@ -27,7 +27,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Store it as `LUNIXI_ENCRYPTION_KEY` in the PHP worker environment through your secret manager. Do not derive it from a database/cookie/private/webhook key. Retain it across restarts and upgrades; loss prevents decryption of historical credentials/tokens.
 
-Upload **`lunixipay-0.1.4.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
+For candidate validation, upload the built **`lunixipay-0.1.5.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
 
 ## Merchant configuration
 
@@ -105,7 +105,7 @@ php tools/build.php
 php tools/check-artifact.php
 ```
 
-Default builds resolve public `lunixi/php-sdk:0.29.5`. Before that registry version is published, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
+Default builds resolve public `lunixi/php-sdk:0.29.6`. For development, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
 
 Validation includes PHPCS, PHPStan level 8 against an installed native platform, Composer audit, artifact/secret-boundary checks and real native models/database tests with synthetic gateway transport. Tests exercise a real database-trigger rollback, stable retry keys, encrypted storage, ownership/CSRF gates, verified webhook/GET, replay, capture/partial capture/void/refund and uninstall retention. A separate fresh-process test checks reinstall.
 
@@ -128,4 +128,8 @@ Existing explicit hosted settings are retained. Checkout mode, callback, preauth
 
 For the focused native form/URL regression only, run `LUNIXI_NATIVE_TEST=1 LUNIXI_NATIVE_FORM_ONLY=1 php tests/native.php /absolute/disposable-shop`. It checks embedded default, retained explicit hosted settings, exact backend URL persistence and frozen-attempt handling without live payments.
 
-Current 0.1.4 focused form/URL checks: **40 assertions on each of PrestaShop 8.2.4 and 9.2.0**, PHPStan level 8 against both native roots, PHPCS and standalone artifact checks passed. The earlier full native/HTTP results above remain the recorded 0.1.3 baseline. Live/merchant acceptance is deferred.
+Historical 0.1.4 focused form/URL checks: **40 assertions on each of PrestaShop 8.2.4 and 9.2.0**, PHPStan level 8 against both native roots, PHPCS and standalone artifact checks passed. The earlier full native/HTTP results above remain the recorded 0.1.3 baseline. At that earlier checkpoint, merchant acceptance was deferred; the new candidate acceptance is recorded below.
+
+Candidate 0.1.5 was rebuilt from published Packagist PHP SDK 0.29.6 (source `29fb3ac2f0fdff7a3825e189572c7aef4b212cc1`). Fresh PrestaShop 8.2.4 / PHP 8.1.34 and 9.2.0 / PHP 8.5.12 shops on MariaDB 11.8.6 each passed **70 native assertions, fresh-process reinstall and 35 actual HTTP assertions** against the new ZIP. Native 0.1.4→0.1.5 upgrade preserved hashes of encrypted configuration, attempts, event receipts, orders/payments/history and outbox rows. Separate genuine customer login→cart→address→checkout HTTP tests passed embedded and optional exact-backend-URL hosted modes on both versions; signed webhook/replay/tamper and a single native TRY 100.50 payment were verified using a local TLS provider stand-in. No old 0.1.4 test result is counted as a new-ZIP run.
+
+No real bank charge or valid external browser-session acceptance is claimed. The earlier Chrome observation used a separate headless profile and public DevTools APIs; only fixture-certificate SPKI trust and synthetic API interception applied, with application authentication/CSRF/ownership and production TLS code intact. It showed the official SDK mounting, while valid merchant-token/card/3DS/provider acceptance remained untested.

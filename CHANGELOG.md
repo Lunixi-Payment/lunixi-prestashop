@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5 — 2026-10-31
+
+- Bundle published Lunixi PHP SDK 0.29.6 for PHP 8.5 cURL compatibility under strict error handlers; the transport relies on automatic handle cleanup instead of deprecated no-op calls.
+- Add a native dependency-only upgrade hook. Existing configuration, encrypted credentials, payment attempts, stable request bodies/keys, native order states and financial history are preserved. Embedded remains the default and optional hosted checkout still uses the exact backend paymentPageUrl.
+
 ## 0.1.4 — 2026-10-31
 
 - Default new/unset checkout configuration to the existing embedded Lunixi form, retaining explicitly selected hosted mode. Both modes share all merchant-enabled form features.

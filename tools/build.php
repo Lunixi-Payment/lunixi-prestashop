@@ -58,13 +58,18 @@ removeTree($input);
 removeTree($output);
 mkdir($input, 0755, true);
 mkdir($output, 0755, true);
-$config = ['name' => 'lunixi/prestashop-release-input', 'require' => ['lunixi/php-sdk' => '0.29.5'], 'config' => ['allow-plugins' => false, 'sort-packages' => true]];
+$config = ['name' => 'lunixi/prestashop-release-input', 'require' => ['lunixi/php-sdk' => '0.29.6'], 'config' => ['allow-plugins' => false, 'sort-packages' => true]];
 if ($local !== null) {
     $config['repositories'] = [['type' => 'path', 'url' => realpath($local), 'options' => ['symlink' => false]]];
 }
 file_put_contents($input . '/composer.json', json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
 run(['composer', 'install', '--no-dev', '--no-interaction', '--prefer-dist', '--classmap-authoritative'], $input);
-foreach (['lunixipay.php', 'autoload.php', 'src', 'controllers', 'views', 'translations', 'logo.svg', 'logo.png', 'LICENSE', 'README.md', 'README.tr.md', 'CHANGELOG.md', 'SECURITY.md', 'VERSION'] as $file) {
+$packageFiles = [
+    'lunixipay.php', 'autoload.php', 'src', 'controllers', 'upgrade', 'views',
+    'translations', 'logo.svg', 'logo.png', 'LICENSE', 'README.md', 'README.tr.md',
+    'CHANGELOG.md', 'SECURITY.md', 'UPGRADE.md', 'VERSION',
+];
+foreach ($packageFiles as $file) {
     if (file_exists($root . '/' . $file)) {
         copyTree($root . '/' . $file, $output . '/' . $file);
     }
@@ -74,6 +79,23 @@ copy($root . '/tools/cron.php', $output . '/tools/cron.php');
 $source = $input . '/vendor/lunixi/php-sdk';
 run([PHP_BINARY, $root . '/tools/vendor/bin/php-scoper', 'add-prefix', 'src', '--output-dir=' . $output . '/sdk', '--config=' . $root . '/scoper.inc.php', '--force', '--no-interaction'], $source);
 copy($source . '/LICENSE', $output . '/sdk/LICENSE');
+$lock = json_decode(file_get_contents($input . '/composer.lock'), true, 64, JSON_THROW_ON_ERROR);
+$package = null;
+foreach ($lock['packages'] as $dependency) {
+    if ($dependency['name'] === 'lunixi/php-sdk') {
+        $package = $dependency;
+        break;
+    }
+}
+if (!is_array($package) || ltrim($package['version'], 'v') !== '0.29.6') {
+    throw new RuntimeException('The merchant ZIP requires exactly shared SDK 0.29.6.');
+}
+$reference = $package['source']['reference'] ?? null;
+file_put_contents($output . '/sdk/UPSTREAM.json', json_encode([
+    'name' => 'lunixi/php-sdk', 'version' => '0.29.6',
+    'origin' => $local === null ? 'packagist' : 'explicit-reviewed-source',
+    'sourceReference' => is_string($reference) && preg_match('/^[a-f0-9]{40}$/D', $reference) ? $reference : null,
+], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
 $prefix = 'Lunixi\\PrestaShop\\Vendor\\Lunixi\\Sdk\\';
 $autoload = '<?php' . "\ndeclare(strict_types=1);\nspl_autoload_register(static function (string \$class): void {\n";
 $autoload .= '    $prefix = ' . var_export($prefix, true) . ";\n";
