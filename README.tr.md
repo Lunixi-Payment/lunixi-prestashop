@@ -2,13 +2,17 @@
 
 # PrestaShop için Lunixi
 
+**Doğrulanmış güncel mağaza ZIP’i 0.1.5:** [`lunixipay-0.1.5.zip`](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/lunixipay-0.1.5.zip) · [SHA256SUMS](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/SHA256SUMS) · [Yayın v0.1.5](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v0.1.5) · [Başarılı yayın CI koşumu](https://github.com/Lunixi-Payment/lunixi-prestashop/actions/runs/41242113286).
+
+Public ZIP SHA-256: `ee7032eb50ba9c6250bc492be671254ad547c4284c07e4f5cdc6cc5dfc237725`. İndirilen arşivin checksum, GitHub asset digest ve ZIP CRC kontrolleri 1 Kasım 2026 tarihinde doğrulandı. Otomatik GitHub kaynak arşivi yerine bu kurulum paketini kullanın.
+
 [English](README.md) · [Türkçe](README.tr.md) · [Dokümantasyon](https://docs.lunixi.com/tr/sdks/prestashop)
 
-**PrestaShop 8.1+ / 9.x** için native ödeme modülü, hazırlanan sürüm **0.1.5**. Mevcut Lunixi formu varsayılan olarak mağaza içinde açılır; backend ödeme adresine yönlendirme isteğe bağlıdır. Açık ödeme yöntemleri, taksitler, uygun alternatif yöntemler, sigorta ve çoklu kart Lunixi paneli/formundan yönetilir. Modül PAN/CVV toplamaz.
+**PrestaShop 8.1+ / 9.x** için native ödeme modülü, sürüm **0.1.5**. Mevcut Lunixi formu varsayılan olarak mağaza içinde açılır; backend ödeme adresine yönlendirme isteğe bağlıdır. Açık ödeme yöntemleri, taksitler, uygun alternatif yöntemler, sigorta ve çoklu kart Lunixi paneli/formundan yönetilir. Modül PAN/CVV toplamaz.
 
 İmza, token, tutar, split-parent kanıtı, ek ücret korelasyonu, idempotency ve webhook kuralları ortak **Lunixi PHP SDK Commerce** çekirdeğindedir. Kurulum ZIP’i namespace ile izole edilmiş SDK ve bağımsız autoloader içerir; mağazada Composer gerekmez.
 
-Hazırlanan 0.1.5, yayımlanmış PHP SDK 0.29.6 içerir. Yeni kaynak ve mağaza ZIP’i yayımlanana kadar doğrulanmış mevcut yayın 0.1.4’tür.
+0.1.5, yayımlanmış PHP SDK 0.29.6 içerir; güncel mağaza ZIP’i, checksum ve başarılı CI yukarıda doğrulanmıştır.
 
 ## Gereksinimler
 
@@ -18,12 +22,12 @@ Hazırlanan 0.1.5, yayımlanmış PHP SDK 0.29.6 içerir. Yeni kaynak ve mağaza
 - Lunixi merchant/key ID, özel Ed25519 anahtarı ve webhook secret.
 - Veritabanından ve public web dizininden ayrı tutulan, yedekli **32 bayt sunucu şifreleme anahtarı**.
 
-Native kabul kontrolleri gerçek **PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11** üzerinde çalıştırıldı. Gateway transport sentetiktir; para taşınmaz. PrestaShop 8.2.4 CI matrisine dahildir; bağımsız 8.x doğrulaması için o native koşumun da geçmesi gerekir. Kaynak yayını Addons onayı veya registry yayını anlamına gelmez.
+Güncel 0.1.5 kabulü, **MariaDB 11.8.6/InnoDB** üzerinde yeni **PrestaShop 8.2.4 / PHP 8.1.34** ve **9.2.0 / PHP 8.5.12** mağazalarında çalıştı: her birinde **70 native assertion, 35 gerçek HTTPS assertion ve ayrı süreçte yeniden kurulum** yanında müşteri embedded/hosted ve imzalı tahsilat senaryoları geçti. Gateway yerel TLS bileşeniydi; banka/kart/3DS veya tam tarayıcı/CDN kabulü iddia edilmez. Önceki 0.1.3/0.1.4 sonuçları aşağıda ayrı tarihsel kayıttır. Yayın, Addons onayı anlamına gelmez.
 
 ## ZIP kurulumu ve ayarlar
 
 1. Veritabanını ve sunucu secret’larını yedekleyin. Sunucuda `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'` ile anahtar üretin ve PHP worker ortamına `LUNIXI_ENCRYPTION_KEY` olarak kaydedin. Anahtarı başka secret/paroladan türetmeyin; yeniden başlatma ve yükseltmede koruyun. Eski anahtarı kaybetmek geçmiş şifreli bilgileri okunamaz yapar.
-2. Aday doğrulamasında **Module Manager → Upload a module** üzerinden derlenen `lunixipay-0.1.5.zip` yükleyip **Lunixi Payments** modülünü kurun. ZIP kökünde `lunixipay/` bulunur. GitHub kaynak ZIP’i kurulum ZIP’i değildir.
+2. **Module Manager → Upload a module** üzerinden derlenen `lunixipay-0.1.5.zip` yükleyip **Lunixi Payments** modülünü kurun. ZIP kökünde `lunixipay/` bulunur. GitHub kaynak ZIP’i kurulum ZIP’i değildir.
 3. Multistore’da tek mağaza seçin. **Merchant ID**, **Key ID**, **Private Ed25519 key**, **Webhook secret**, **Checkout mode** ve isteğe bağlı **ön provizyon** ayarını kaydedin. Ödeme geçmişi oluştuktan sonra mağaza başka merchant ID’ye bağlanamaz. Döndürülen anahtarlar şifreli geçmişte saklanır; rotasyonda mevcut ve iki önceki webhook secret kabul edilir. Secret alanları düzenlemede boş görünür; boş bırakmak mevcut değeri korur. Kayıt için modül düzenleme yetkisi ve admin CSRF gerekir.
 4. Panelin gösterdiği **tam webhook URL’sini**, `shop_id` dahil, Lunixi’ye kaydedin. Dokümante merchant ödeme olaylarına abone olun. Para birimi/ülke/kargo/müşteri grubu kısıtlarını PrestaShop’un native ödeme tercihlerinden yönetin.
 
@@ -78,7 +82,7 @@ composer install --working-dir=tools --no-interaction
 php tools/build.php
 ```
 
-Varsayılan build public registry’deki `lunixi/php-sdk:0.29.6` paketini çözer. Sürüm henüz yayımlanmadıysa incelenmiş kaynak kopyasını açıkça verin:
+Varsayılan build public registry’deki `lunixi/php-sdk:0.29.6` paketini çözer. Geliştirme için incelenmiş kaynak kopyası açıkça verilebilir:
 
 ```bash
 php tools/build.php /tam/yol/lunixi-php
@@ -116,10 +120,10 @@ Varsayılan, mağaza içinde açılan gömülü Lunixi formudur. İsteğe bağl�
 
 Önceden açıkça seçilmiş yönlendirme ayarları korunur. Form modu, dönüş adresi, ön provizyon ve dil özgün ödeme isteğine bağlıdır; değiştirmek denemenin hash veya idempotency anahtarını sıfırlayamaz. Eski bir denemede backend ödeme adresi kayıtlı değilse yönlendirme güvenli biçimde durur; adres üretmek, geçmişi silmek veya yeni anahtar açmak yerine mevcut denemeyi uzlaştırın. Gömülü form korumalı tarayıcı yapılandırmasını kullanır. İmzalı webhook, doğrulanmış tahsilat kontrolleri ve bilgilendirici 3DS/çoklu kart dönüşleri korunur.
 
-Önceki 0.1.4 odaklı form/URL kontrolü: **PrestaShop 8.2.4 ve 9.2.0 üzerinde ayrı ayrı 40 assertion**, iki yerel kaynak kökünde PHPStan seviye 8, PHPCS ve bağımsız ZIP kontrolleri geçti. Yukarıdaki önceki tam native/HTTP sonuçları 0.1.3 temel doğrulamasıdır. O önceki aşamada merchant kabulü ertelenmişti; yeni aday kabulü aşağıda ayrı kaydedilmiştir.
+Önceki 0.1.4 odaklı form/URL kontrolü: **PrestaShop 8.2.4 ve 9.2.0 üzerinde ayrı ayrı 40 assertion**, iki yerel kaynak kökünde PHPStan seviye 8, PHPCS ve bağımsız ZIP kontrolleri geçti. Yukarıdaki önceki tam native/HTTP sonuçları 0.1.3 temel doğrulamasıdır. O önceki aşamada merchant kabulü ertelenmişti; 0.1.5 native/mock kabulü aşağıda ayrı kaydedilmiştir.
 
 [Native yükseltme yönergesi](UPGRADE.md): Module Manager Yükselt işlemini kullanın; modülü kaldırmayın veya bekleyen denemeleri sıfırlamayın.
 
-0.1.5 adayı yayımlanmış Packagist PHP SDK 0.29.6’dan yeniden derlendi (kaynak `29fb3ac2f0fdff7a3825e189572c7aef4b212cc1`). MariaDB 11.8.6 kullanan yeni PrestaShop 8.2.4 / PHP 8.1.34 ve 9.2.0 / PHP 8.5.12 mağazalarında yeni ZIP ile ayrı ayrı **70 native assertion, ayrı süreçte yeniden kurulum ve 35 gerçek HTTP assertion** geçti. Native 0.1.4→0.1.5 yükseltmesinde şifreli ayar, deneme, olay, sipariş/ödeme/geçmiş ve outbox kayıtlarının hashleri değişmedi. İki sürümde de gerçek müşteri girişi→sepet→adres→checkout HTTP akışında embedded ve backend’in tam adresine yönlendirme seçenekleri geçti; yerel TLS ödeme servisiyle imzalı webhook/replay/tamper ve tek 100,50 TRY native ödeme doğrulandı. Eski 0.1.4 sonuçları yeni ZIP testi sayılmadı.
+0.1.5 yayımlanmış Packagist PHP SDK 0.29.6’dan yeniden derlendi (kaynak `29fb3ac2f0fdff7a3825e189572c7aef4b212cc1`). MariaDB 11.8.6 kullanan yeni PrestaShop 8.2.4 / PHP 8.1.34 ve 9.2.0 / PHP 8.5.12 mağazalarında yeni ZIP ile ayrı ayrı **70 native assertion, ayrı süreçte yeniden kurulum ve 35 gerçek HTTP assertion** geçti. Native 0.1.4→0.1.5 yükseltmesinde şifreli ayar, deneme, olay, sipariş/ödeme/geçmiş ve outbox kayıtlarının hashleri değişmedi. İki sürümde de gerçek müşteri girişi→sepet→adres→checkout HTTP akışında embedded ve backend’in tam adresine yönlendirme seçenekleri geçti; yerel TLS ödeme servisiyle imzalı webhook/replay/tamper ve tek 100,50 TRY native ödeme doğrulandı. Eski 0.1.4 sonuçları yeni ZIP testi sayılmadı.
 
-Gerçek banka tahsilatı veya geçerli harici tarayıcı oturumu kabulü yapıldığı iddia edilmez. Önceki Chrome gözlemi ayrı headless profil ve public DevTools API’lerini kullandı; yalnız test sertifikasına SPKI güveni ve sentetik API interception uygulandı. Uygulamanın kimlik/CSRF/sahiplik ve üretim TLS kontrolleri değiştirilmedi. Resmî SDK’nın mağaza sayfasına mount olması görüldü; geçerli merchant token/kart/3DS/provider kabulü test edilmedi.
+Public **0.1.5** arşivindeki **313 dosyanın tamamı**, nihai yerel kabul ZIP’iyle içerik olarak birebir aynıdır. İndirilen arşivin public checksum, asset digest, CRC ve iki native imaj CI kapısı geçti. Kabul, native platform + sentetik transport kapsamındadır; tarayıcı/CDN/kart/banka/3DS kabulü sayılmaz.

@@ -6,6 +6,10 @@ description: Native Lunixi payment module for PrestaShop 8/9 — merchant ZIP, e
 
 # PrestaShop
 
+**Current verified merchant ZIP 0.1.5:** [`lunixipay-0.1.5.zip`](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/lunixipay-0.1.5.zip) · [SHA256SUMS](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/SHA256SUMS) · [Release v0.1.5](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v0.1.5) · [Passing release CI](https://github.com/Lunixi-Payment/lunixi-prestashop/actions/runs/41242113286).
+
+Public ZIP SHA-256: `ee7032eb50ba9c6250bc492be671254ad547c4284c07e4f5cdc6cc5dfc237725`. The downloaded archive passed public checksum, GitHub asset digest and ZIP CRC checks on 1 November 2026. Use this installation package rather than GitHub’s automatic source archive.
+
 `lunixipay` connects PrestaShop's native checkout/order lifecycle to Lunixi. The existing Lunixi form opens on the merchant website by default, with optional hosted checkout; enabled methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in Lunixi. The module never collects PAN/CVV.
 
 The standalone merchant ZIP bundles a namespace-isolated [PHP SDK](/sdks/php). Shared Commerce code owns signing, integer money, durable attempts, webhook authentication, split-parent evidence and safe retries. Merchants do not need Composer.
@@ -17,7 +21,7 @@ The standalone merchant ZIP bundles a namespace-isolated [PHP SDK](/sdks/php). S
 - HTTPS storefront/webhook, registered Lunixi merchant/key and webhook secret.
 - A separate, backed-up 32-byte server encryption key outside the database/public web root.
 
-Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Prepared 0.1.5 is a candidate; verified public 0.1.4 remains available until publication. Neither implies PrestaShop Addons approval. The recorded 0.1.3 baseline acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The same 65-assertion native suite also passed on official 8.2.4 in an isolated local PHP 8.3.6/MariaDB fixture. Both official-image native CI jobs remain independent release gates.
+Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Verified public 0.1.5 is available above. Publication does not imply PrestaShop Addons approval. The recorded 0.1.3 baseline acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The same 65-assertion native suite also passed on official 8.2.4 in an isolated local PHP 8.3.6/MariaDB fixture. Both official-image native CI jobs remain independent release gates.
 
 Generate the server key locally:
 
@@ -27,7 +31,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Store it as `LUNIXI_ENCRYPTION_KEY` in the PHP worker environment through your secret manager. Do not derive it from a database/cookie/private/webhook key. Retain it across restarts and upgrades; loss prevents decryption of historical credentials/tokens.
 
-For candidate validation, upload the built **`lunixipay-0.1.5.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
+Upload the verified **`lunixipay-0.1.5.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
 
 ## Merchant configuration
 
@@ -128,8 +132,8 @@ Existing explicit hosted settings are retained. Checkout mode, callback, preauth
 
 For the focused native form/URL regression only, run `LUNIXI_NATIVE_TEST=1 LUNIXI_NATIVE_FORM_ONLY=1 php tests/native.php /absolute/disposable-shop`. It checks embedded default, retained explicit hosted settings, exact backend URL persistence and frozen-attempt handling without live payments.
 
-Historical 0.1.4 focused form/URL checks: **40 assertions on each of PrestaShop 8.2.4 and 9.2.0**, PHPStan level 8 against both native roots, PHPCS and standalone artifact checks passed. The earlier full native/HTTP results above remain the recorded 0.1.3 baseline. At that earlier checkpoint, merchant acceptance was deferred; the new candidate acceptance is recorded below.
+Historical 0.1.4 focused form/URL checks: **40 assertions on each of PrestaShop 8.2.4 and 9.2.0**, PHPStan level 8 against both native roots, PHPCS and standalone artifact checks passed. The earlier full native/HTTP results above remain the recorded 0.1.3 baseline. At that earlier checkpoint, merchant acceptance was deferred; the 0.1.5 native/mock acceptance is recorded below.
 
-Candidate 0.1.5 was rebuilt from published Packagist PHP SDK 0.29.6 (source `29fb3ac2f0fdff7a3825e189572c7aef4b212cc1`). Fresh PrestaShop 8.2.4 / PHP 8.1.34 and 9.2.0 / PHP 8.5.12 shops on MariaDB 11.8.6 each passed **70 native assertions, fresh-process reinstall and 35 actual HTTP assertions** against the new ZIP. Native 0.1.4→0.1.5 upgrade preserved hashes of encrypted configuration, attempts, event receipts, orders/payments/history and outbox rows. Separate genuine customer login→cart→address→checkout HTTP tests passed embedded and optional exact-backend-URL hosted modes on both versions; signed webhook/replay/tamper and a single native TRY 100.50 payment were verified using a local TLS provider stand-in. No old 0.1.4 test result is counted as a new-ZIP run.
+Release 0.1.5 was rebuilt from published Packagist PHP SDK 0.29.6 (source `29fb3ac2f0fdff7a3825e189572c7aef4b212cc1`). Fresh PrestaShop 8.2.4 / PHP 8.1.34 and 9.2.0 / PHP 8.5.12 shops on MariaDB 11.8.6 each passed **70 native assertions, fresh-process reinstall and 35 actual HTTP assertions** against the new ZIP. Native 0.1.4→0.1.5 upgrade preserved hashes of encrypted configuration, attempts, event receipts, orders/payments/history and outbox rows. Separate genuine customer login→cart→address→checkout HTTP tests passed embedded and optional exact-backend-URL hosted modes on both versions; signed webhook/replay/tamper and a single native TRY 100.50 payment were verified using a local TLS provider stand-in. No old 0.1.4 test result is counted as a new-ZIP run.
 
-No real bank charge or valid external browser-session acceptance is claimed. The earlier Chrome observation used a separate headless profile and public DevTools APIs; only fixture-certificate SPKI trust and synthetic API interception applied, with application authentication/CSRF/ownership and production TLS code intact. It showed the official SDK mounting, while valid merchant-token/card/3DS/provider acceptance remained untested.
+The public **0.1.5** archive above has all **313 extracted file contents identical** to the final locally accepted ZIP. Its downloaded public checksum, asset digest, CRC and both native-image CI gates passed. Acceptance evidence is native platform + mocked transport; no browser/CDN/card/bank/3DS acceptance is counted.
