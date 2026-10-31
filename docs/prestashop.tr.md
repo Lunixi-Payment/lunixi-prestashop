@@ -75,6 +75,8 @@ Split başarısı doğru parent kimliği, dengeli toplam, tam tahsilat ve compen
 
 Native durum/download e-postaları transaction sırasında şifreli outbox’a alınır. Bakımı birkaç dakikada bir zamanlayın:
 
+Cron ve bakım komutlarını **web PHP işçisiyle aynı işletim sistemi hesabında** çalıştırın; gerçek hesabı yayın ortamınızın yapılandırmasından belirleyin. Aynı `LUNIXI_ENCRYPTION_KEY` ve gerekli PHP eklentilerini koruyun. Root ile oluşturulan önbellek dosyaları web işçisinin yazmasını engelleyebilir; `chmod 777` yerine doğru hesabın dosya sahipliğini düzeltin.
+
 ```bash
 php /magaza/yolu/modules/lunixipay/tools/cron.php /magaza/yolu
 ```

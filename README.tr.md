@@ -51,6 +51,8 @@ Ortak çekirdek split **parent** kimliğini, toplam dengeyi, tam tahsilatı ve c
 
 E-postalar finansal commit öncesinde gönderilmez; şifreli ve kalıcı outbox’a alınır. Aşağıdaki CLI işini birkaç dakikada bir çalıştırın:
 
+Cron ve bakım komutlarını **web PHP işçisiyle aynı işletim sistemi hesabında** çalıştırın; gerçek hesabı yayın ortamınızın yapılandırmasından belirleyin. Aynı `LUNIXI_ENCRYPTION_KEY` ve gerekli PHP eklentilerini koruyun. Root ile oluşturulan önbellek dosyaları web işçisinin yazmasını engelleyebilir; `chmod 777` yerine doğru hesabın dosya sahipliğini düzeltin.
+
 ```bash
 php /magaza/yolu/modules/lunixipay/tools/cron.php /magaza/yolu
 ```

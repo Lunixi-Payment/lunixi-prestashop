@@ -58,6 +58,8 @@ The shared kernel validates split **parent** identity, aggregate balance, comple
 
 A durable encrypted notification outbox prevents native status/download emails from being sent before payment commit. Run the CLI maintenance command every few minutes:
 
+Run cron and maintenance under the **same OS account as the web PHP worker**; use the account configured by your deployment. Preserve the same `LUNIXI_ENCRYPTION_KEY` and required PHP extensions. Root-created cache files can prevent the web worker from writing; repair ownership for the correct account instead of using `chmod 777`.
+
 ```bash
 php /path/to/shop/modules/lunixipay/tools/cron.php /path/to/shop
 ```

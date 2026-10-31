@@ -22,7 +22,9 @@ services:
       PS_INSTALL_AUTO: '1'
       PS_DEV_MODE: '1'
       PS_DOMAIN: localhost:18092
-      PS_FOLDER_ADMIN: admin-lunixi
+      # Preserve the official admin directory until the native installer finalizes.
+      # Core 9.2 then randomizes it and installs assets into the actual target.
+      PS_FOLDER_ADMIN: admin
       PS_FOLDER_INSTALL: install-lunixi
       PS_LANGUAGE: en
       PS_COUNTRY: tr

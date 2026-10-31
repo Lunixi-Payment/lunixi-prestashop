@@ -79,16 +79,40 @@ jobs:
       - run: docker compose -f tests/compose.yml up -d
         env:
           PRESTASHOP_IMAGE: prestashop/prestashop:${{ matrix.platform }}
-      - name: Wait for native installation
+      - name: Wait for complete native installation and Apache readiness
+        shell: bash
         run: |
+          set -euo pipefail
+          compose=(docker compose -f tests/compose.yml)
+          container="$("${compose[@]}" ps --all --quiet shop)"
+          if [ -z "$container" ]; then
+            echo '::error::Native shop container was not created.'
+            "${compose[@]}" logs --no-color --tail 80 shop
+            exit 1
+          fi
           for attempt in $(seq 1 90); do
-            if docker compose -f tests/compose.yml exec -T shop test -f app/config/parameters.php && docker compose -f tests/compose.yml exec -T shop test ! -d install-lunixi; then exit 0; fi
+            state="$(docker inspect --format '{{.State.Status}}' "$container" 2>/dev/null || true)"
+            case "$state" in
+              exited|dead|removing|'')
+                echo "::error::Native shop stopped before successful installation (state=$state)."
+                "${compose[@]}" logs --no-color --tail 80 shop
+                exit 1
+                ;;
+            esac
+            if "${compose[@]}" exec -T shop sh -c 'test -f app/config/parameters.php && test ! -e install.lock && test ! -d install-lunixi' &&
+               "${compose[@]}" exec -T shop php -r '$socket = @stream_socket_client("tcp://127.0.0.1:80", $errno, $error, 2); if (!is_resource($socket)) { exit(1); } stream_set_timeout($socket, 2); fwrite($socket, "GET /index.php HTTP/1.1\r\nHost: localhost:18092\r\nConnection: close\r\n\r\n"); $line = fgets($socket, 512); fclose($socket); exit(is_string($line) && preg_match("~^HTTP/1\\.[01] [23][0-9]{2} ~", $line) ? 0 : 1);'; then
+              echo 'Native installer completed and Apache returned a successful HTTP status.'
+              exit 0
+            fi
             sleep 5
           done
-          docker compose -f tests/compose.yml logs --tail 80 shop
+          echo '::error::Native installation did not become ready within the bounded wait.'
+          "${compose[@]}" logs --no-color --tail 80 shop
           exit 1
       - run: docker compose -f tests/compose.yml exec -T shop php /lunixi-tests/native.php /var/www/html
       - run: docker compose -f tests/compose.yml exec -T shop php /lunixi-tests/reinstall.php /var/www/html
+      - name: Restore native web-user ownership of disposable CLI-warmed caches
+        run: docker compose -f tests/compose.yml exec -T shop chown -R www-data:www-data /var/www/html/var/cache
       - run: docker compose -f tests/compose.yml exec -T shop php /lunixi-tests/http.php http://localhost localhost:18092
       - run: docker compose -f tests/compose.yml cp tools/vendor/phpstan/phpstan/phpstan.phar shop:/tmp/phpstan.phar
       - run: docker compose -f tests/compose.yml exec -T -e PRESTASHOP_ROOT=/var/www/html shop php /tmp/phpstan.phar analyse -c /lunixi-tests/phpstan-native.neon --no-progress

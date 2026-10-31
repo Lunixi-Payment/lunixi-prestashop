@@ -38,7 +38,12 @@ function request(string $method, string $path, ?string $body = null, ?string $ja
 
 $prefix = 'index.php?fc=module&module=lunixipay&controller=';
 foreach ([['GET', 'webhook&shop_id=1', null, 405], ['POST', 'webhook&shop_id=1', '{}', 400], ['GET', 'checkout&id_order=1', null, 302]] as [$method, $path, $body, $expected]) {
-    check(request($method, $prefix . $path, $body)['status'] === $expected, 'method/signature/checkout boundary');
+    $response = request($method, $prefix . $path, $body);
+    $location = parse_url($response['location']);
+    $safePath = is_array($location) ? ($location['path'] ?? '/') : '';
+    if (!preg_match('~^/(?:index\.php|(?:[a-z]{2}/)?(?:login|authentication|module/lunixipay/(?:webhook|checkout|return)))$~D', $safePath)) { $safePath = '[redacted-path]'; }
+    $safeLocation = $response['location'] === '' ? 'none' : (($location['scheme'] ?? 'relative') . '://' . ($location['host'] ?? '') . (isset($location['port']) ? ':' . $location['port'] : '') . $safePath);
+    check($response['status'] === $expected, 'method/signature/checkout boundary: method=' . $method . ' controller=' . strtok($path, '&') . ' expected=' . $expected . ' actual=' . $response['status'] . ' location=' . $safeLocation);
 }
 
 $fixturePath = sys_get_temp_dir() . '/lunixi-prestashop-http-fixture.json';

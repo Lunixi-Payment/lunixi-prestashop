@@ -75,6 +75,8 @@ Split success requires the correct parent, balanced aggregate totals, complete c
 
 Native status/download emails are placed in an encrypted durable outbox during that transaction. Schedule maintenance every few minutes:
 
+Run cron and maintenance under the **same OS account as the web PHP worker**; use the account configured by your deployment. Preserve the same `LUNIXI_ENCRYPTION_KEY` and required PHP extensions. Root-created cache files can prevent the web worker from writing; repair ownership for the correct account instead of using `chmod 777`.
+
 ```bash
 php /path/to/shop/modules/lunixipay/tools/cron.php /path/to/shop
 ```
