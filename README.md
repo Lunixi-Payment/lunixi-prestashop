@@ -4,7 +4,7 @@
 
 [English](README.md) · [Türkçe](README.tr.md) · [Documentation](https://docs.lunixi.com/sdks/prestashop)
 
-Native payment module for **PrestaShop 8.1+ / 9.x**, version **0.1.0**. Merchants choose embedded checkout or the hosted `pay.lunixi.com` form. Payment methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in the Lunixi dashboard/form. The module never collects PAN/CVV.
+Native payment module for **PrestaShop 8.1+ / 9.x**, version **0.1.1**. Merchants choose embedded checkout or the hosted `pay.lunixi.com` form. Payment methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in the Lunixi dashboard/form. The module never collects PAN/CVV.
 
 Payment signing, encrypted checkout storage, settlement evidence, split-parent checks, fee correlation, idempotency and webhook replay rules use the shared **Lunixi PHP SDK Commerce kernel**. The release ZIP ships an isolated SDK namespace and standalone autoloader; merchants do **not** need Composer.
 
@@ -28,7 +28,7 @@ Native acceptance was executed on PrestaShop **9.2.0**, PHP **8.3.6**, MariaDB *
    ```
 
    Store the result in your secret manager. Do not derive it from the webhook secret, private key, database password or cookie key. Keep it stable across upgrades/restarts. Retain old keys during a planned credential/token migration; losing this key makes encrypted historical credentials/tokens unreadable.
-3. Upload `lunixipay-0.1.0.zip` using **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP contains a top-level `lunixipay/` directory. A source ZIP from GitHub is not the merchant installation ZIP.
+3. Upload `lunixipay-0.1.1.zip` using **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP contains a top-level `lunixipay/` directory. A source ZIP from GitHub is not the merchant installation ZIP.
 4. Select one shop when configuring a multistore installation. Save **Merchant ID**, **Key ID**, **Private Ed25519 key**, **Webhook secret**, **Checkout mode** and optional **Authorize first, capture later**. Once payments exist, a shop cannot be rebound to another merchant ID. Rotated credentials remain encrypted in history; current and two previous webhook secrets are accepted during rotation. Secret fields remain blank when editing; blank preserves the saved secret. Only an employee with module-edit permission and a valid admin CSRF token can save.
 5. Register the **exact webhook URL displayed in the configuration panel**, including its `shop_id`, in Lunixi. Subscribe to the documented merchant payment events. Configure payment currency/country/carrier/group availability through PrestaShop's native payment preferences.
 
@@ -83,13 +83,13 @@ composer install --working-dir=tools --no-interaction
 php tools/build.php
 ```
 
-The default build resolves `lunixi/php-sdk:^0.29.3` from its public registry. If that SDK version has not yet been published, explicitly supply a reviewed SDK checkout:
+The default build resolves `lunixi/php-sdk:0.29.3` from its public registry. If that SDK version has not yet been published, explicitly supply a reviewed SDK checkout:
 
 ```bash
 php tools/build.php /absolute/path/to/lunixi-php
 ```
 
-The local path is used only as a build input. It is not included in the ZIP. PHP-Scoper prefixes the bundled SDK as `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; neither unscoped SDK aliases nor the site's Composer autoloader are registered. Build output is `dist/lunixipay-0.1.0.zip`. Review its SHA-256 and source before installation. No secrets, test fixtures, development dependencies or internal source paths are shipped.
+The local path is used only as a build input. It is not included in the ZIP. PHP-Scoper prefixes the bundled SDK as `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; neither unscoped SDK aliases nor the site's Composer autoloader are registered. Build output is `dist/lunixipay-0.1.1.zip`. Review its SHA-256 and source before installation. No secrets, test fixtures, development dependencies or internal source paths are shipped.
 
 ## Checks
 
@@ -100,6 +100,7 @@ php tools/check-artifact.php
 # On an installed isolated native platform, after copying build/lunixipay to modules/:
 LUNIXI_NATIVE_TEST=1 php tests/native.php /path/to/shop
 LUNIXI_NATIVE_TEST=1 php tests/reinstall.php /path/to/shop
+php tests/http.php http://127.0.0.1:8080 localhost:8080
 PRESTASHOP_ROOT=/path/to/shop php tools/vendor/bin/phpstan analyse -c phpstan.neon --no-progress
 ```
 
@@ -108,3 +109,8 @@ The native suite uses actual PrestaShop customer/cart/order/payment/history/stat
 [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Changes](CHANGELOG.md) · MIT [license](LICENSE) · developer@lunixi.com
 
 Financial outcomes that remain uncertain are held for review. `FAILED` alone does not authorize a new attempt: the public payment read does not expose definitive provider outcome certainty. Unresolved financial retries stop after 23 hours; authenticated GET reconciliation remains available. A timeout, token expiry or browser callback never generates a fresh financial key.
+
+The informational return accepts only the order locator from the URL query, discards at most 1 MiB of POST body without interpreting any payment fields, then returns an empty 303 to the native shop return URL. The POST does not load an order or call the gateway; unknown order IDs receive the same redirect. The resumed GET retains native customer/guest authentication and order/shop ownership before authenticated reconciliation. Checkout CSRF remains required. Apply matching request-body limits at the reverse proxy as PHP may buffer input before controller execution.
+
+
+Release 0.1.1 verification: **52 native assertions** on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11, **35 real HTTP assertions**, fresh-request reinstall, PHPStan level 8, PHPCS, Composer audits and standalone artifact/secret checks. Fresh activation was repeated after uninstall without manually clearing platform caches. HTTP tests use a genuine native login by a different synthetic customer and prove order ownership still returns 403; all gateway financial responses are synthetic.

@@ -19,6 +19,10 @@ Context::getContext()->container = $kernel->getContainer();
 $module = Module::getInstanceByName('lunixipay');
 if (!$module instanceof Lunixipay) { throw new RuntimeException('Standalone module autoload failed.'); }
 if (!$module->id && !$module->install()) { throw new RuntimeException('Native module install failed.'); }
+// Reconstruct through the core constructor after native activation in SQL.
+// The object loaded before install can still have active=false on 8.2.
+$module = new Lunixipay();
+if (!$module->id || !$module->active) { throw new RuntimeException('Native module must be installed and active.'); }
 
 use Lunixi\PrestaShop\{Access, Bridge, Settings, Storage};
 use Lunixi\PrestaShop\Vendor\Lunixi\Sdk\{Configuration as SdkConfiguration, LunixiClient};
@@ -190,6 +194,10 @@ final class NativeAcceptance
         $this->ok($voidBridge->operationStatus($voidOrder, $voidId)['state'] === 'confirmed', 'native void confirmed from released balance');
         $this->ok((int) Storage::pdo()->query('SELECT COUNT(*) FROM ps_order_payment WHERE order_reference=' . Storage::pdo()->quote($voidOrder->reference))->fetchColumn() === 0, 'void creates no paid record');
         $this->ok($module->getTranslator()->trans('Secure payment', [], 'Modules.Lunixipay.Shop', 'tr-TR') === 'Güvenli ödeme', 'native Turkish translation loaded');
+        // Only synthetic identities are passed to the separate real-HTTP acceptance process.
+        $fixturePath = sys_get_temp_dir() . '/lunixi-prestashop-http-fixture.json';
+        if (file_put_contents($fixturePath, json_encode(['orderId' => (int) $order->id, 'otherEmail' => $context->customer->email], JSON_THROW_ON_ERROR), LOCK_EX) === false) { throw new RuntimeException('Could not write HTTP acceptance fixture.'); }
+        chmod($fixturePath, 0600);
         $this->ok($module->uninstall(), 'native uninstall succeeds');
         $this->ok(Storage::attempt(Bridge::key($order)) !== null, 'uninstall preserves financial history');
         echo 'PrestaShop ' . _PS_VERSION_ . ': ' . $this->assertions . " native assertions passed; synthetic gateway, no funds moved.\n";

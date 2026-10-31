@@ -17,7 +17,7 @@ The standalone merchant ZIP bundles a namespace-isolated [PHP SDK](/sdks/php). S
 - HTTPS storefront/webhook, registered Lunixi merchant/key and webhook secret.
 - A separate, backed-up 32-byte server encryption key outside the database/public web root.
 
-Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Version 0.1.0 is a source/module release; this does not imply PrestaShop Addons approval. Native acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The CI matrix includes 8.2.4; its native run must pass before an independently verified 8.x claim.
+Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Version 0.1.1 is a source/module release; this does not imply PrestaShop Addons approval. Native acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The CI matrix includes 8.2.4; its native run must pass before an independently verified 8.x claim.
 
 Generate the server key locally:
 
@@ -27,7 +27,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Store it as `LUNIXI_ENCRYPTION_KEY` in the PHP worker environment through your secret manager. Do not derive it from a database/cookie/private/webhook key. Retain it across restarts and upgrades; loss prevents decryption of historical credentials/tokens.
 
-Upload **`lunixipay-0.1.0.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
+Upload **`lunixipay-0.1.1.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
 
 ## Merchant configuration
 
@@ -60,7 +60,7 @@ The adapter creates an unpaid native order, serializes conversion of the cart, r
 The merchant's form determines method availability; no duplicate method toggles are added to PrestaShop. Permit the official form's required origins in your storefront CSP.
 
 > 
-Version 0.1.0 supports one shipping package per cart. Multishipping/multi-package carts are rejected before a financial API call. Reconcile an existing attempt before changing totals, currency, merchant or checkout settings; an expired/missing token does not authorize a fresh charge.
+Version 0.1.1 supports one shipping package per cart. Multishipping/multi-package carts are rejected before a financial API call. Reconcile an existing attempt before changing totals, currency, merchant or checkout settings; an expired/missing token does not authorize a fresh charge.
 
 
 Native computing-precision totals use PrestaShop’s exact decimal rounding before minor-unit conversion; currency precision must match the gateway ISO exponent. Half-odd rounding with nonzero sub-minor precision requires manual reconciliation because the native decimal library lacks that mode. Credential rotations retain encrypted history and two previous webhook secrets; a shop with financial history cannot be rebound to another merchant ID.
@@ -103,8 +103,14 @@ php tools/build.php
 php tools/check-artifact.php
 ```
 
-Default builds resolve public `lunixi/php-sdk:^0.29.3`. Before that registry version is published, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
+Default builds resolve public `lunixi/php-sdk:0.29.3`. Before that registry version is published, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
 
 Validation includes PHPCS, PHPStan level 8 against an installed native platform, Composer audit, artifact/secret-boundary checks and real native models/database tests with synthetic gateway transport. Tests exercise a real database-trigger rollback, stable retry keys, encrypted storage, ownership/CSRF gates, verified webhook/GET, replay, capture/partial capture/void/refund and uninstall retention. A separate fresh-process test checks reinstall.
 
 A registered TEST-merchant checkout/webhook/refund run and storefront/theme acceptance are required before live use. See the repository [README](https://github.com/Lunixi-Payment/lunixi-prestashop) and [security policy](https://github.com/Lunixi-Payment/lunixi-prestashop/blob/main/SECURITY.md).
+
+
+The informational return accepts only the order locator from the URL query, discards at most 1 MiB of POST body without interpreting any payment fields, then returns an empty 303 to the native shop return URL. The POST does not load an order or call the gateway; unknown order IDs receive the same redirect. The resumed GET retains native customer/guest authentication and order/shop ownership before authenticated reconciliation. Checkout CSRF remains required. Apply matching request-body limits at the reverse proxy as PHP may buffer input before controller execution.
+
+
+Release 0.1.1 verification: **52 native assertions** on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11, **35 real HTTP assertions**, fresh-request reinstall, PHPStan level 8, PHPCS, Composer audits and standalone artifact/secret checks. Fresh activation was repeated after uninstall without manually clearing platform caches. HTTP tests use a genuine native login by a different synthetic customer and prove order ownership still returns 403; all gateway financial responses are synthetic.

@@ -23,7 +23,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: merchant-zip
-          path: dist/lunixipay-0.1.0.zip
+          path: dist/lunixipay-0.1.1.zip
   native:
     needs: build
     runs-on: ubuntu-latest
@@ -42,7 +42,7 @@ jobs:
         with:
           name: merchant-zip
           path: dist
-      - run: mkdir -p build && unzip dist/lunixipay-0.1.0.zip -d build
+      - run: mkdir -p build && unzip dist/lunixipay-0.1.1.zip -d build
       - run: docker compose -f tests/compose.yml up -d
         env:
           PRESTASHOP_IMAGE: prestashop/prestashop:${{ matrix.platform }}
