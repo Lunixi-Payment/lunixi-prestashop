@@ -1,12 +1,12 @@
 ---
 title: PrestaShop
-description: Native Lunixi payment module for PrestaShop 8/9 — merchant ZIP, encrypted credentials, hosted or embedded form, verified webhooks and durable capture/refund operations.
+description: Native Lunixi payment module for PrestaShop 8/9 — merchant ZIP, encrypted credentials, embedded form by default and optional hosted checkout, verified webhooks and durable capture/refund operations.
 ---
 
 
 # PrestaShop
 
-`lunixipay` connects PrestaShop's native checkout/order lifecycle to Lunixi. Merchants choose the embedded or hosted Lunixi form; enabled methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in Lunixi. The module never collects PAN/CVV.
+`lunixipay` connects PrestaShop's native checkout/order lifecycle to Lunixi. The existing Lunixi form opens on the merchant website by default, with optional hosted checkout; enabled methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in Lunixi. The module never collects PAN/CVV.
 
 The standalone merchant ZIP bundles a namespace-isolated [PHP SDK](/sdks/php). Shared Commerce code owns signing, integer money, durable attempts, webhook authentication, split-parent evidence and safe retries. Merchants do not need Composer.
 
@@ -17,7 +17,7 @@ The standalone merchant ZIP bundles a namespace-isolated [PHP SDK](/sdks/php). S
 - HTTPS storefront/webhook, registered Lunixi merchant/key and webhook secret.
 - A separate, backed-up 32-byte server encryption key outside the database/public web root.
 
-Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Version 0.1.3 is a source/module release; this does not imply PrestaShop Addons approval. Native acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The same 65-assertion native suite also passed on official 8.2.4 in an isolated local PHP 8.3.6/MariaDB fixture. Both official-image native CI jobs remain independent release gates.
+Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Version 0.1.4 is a source/module release; this does not imply PrestaShop Addons approval. The recorded 0.1.3 baseline acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The same 65-assertion native suite also passed on official 8.2.4 in an isolated local PHP 8.3.6/MariaDB fixture. Both official-image native CI jobs remain independent release gates.
 
 Generate the server key locally:
 
@@ -27,7 +27,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Store it as `LUNIXI_ENCRYPTION_KEY` in the PHP worker environment through your secret manager. Do not derive it from a database/cookie/private/webhook key. Retain it across restarts and upgrades; loss prevents decryption of historical credentials/tokens.
 
-Upload **`lunixipay-0.1.3.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
+Upload **`lunixipay-0.1.4.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
 
 ## Merchant configuration
 
@@ -38,7 +38,7 @@ Select one shop in multistore mode, then save:
 | Merchant ID | Merchant identity used to bind settlement evidence |
 | Key ID / private Ed25519 key | Registered server-side signing credentials |
 | Webhook secret | Secret matching the merchant webhook connection |
-| Checkout mode | Hosted `pay.lunixi.com` form or embedded Lunixi form |
+| Checkout mode | Embedded Lunixi form (default), or optional hosted checkout using backend `paymentPageUrl` |
 | Authorize first, capture later | Keep authorizations on hold until capture |
 
 Secret fields are never populated back into the form; leaving a field blank preserves its saved secret. Credentials are authenticated-encrypted using the independent server key. Saving requires native employee module-edit permission and admin CSRF verification.
@@ -53,14 +53,14 @@ PrestaShop shows one **Pay securely with Lunixi** option. Native authenticated c
 
 The adapter creates an unpaid native order, serializes conversion of the cart, reads its DECIMAL total as a string and persists a payment reservation before gateway I/O. A timeout preserves the exact attempt/key. Repeating checkout reuses that operation; it never silently creates another charge.
 
-- Hosted mode redirects only to `https://pay.lunixi.com/payment/<token>`.
-- Embedded mode loads the fixed official `https://cdn.lunixi.com/lunixi-checkout.min.js` through PrestaShop's asset API and mounts browser-safe JSON. Gateway-supplied HTML is not rendered.
+- Optional hosted mode redirects only to the validated backend `paymentPageUrl`; it never constructs a URL from the browser token.
+- Default embedded mode loads the fixed official `https://cdn.lunixi.com/lunixi-checkout.min.js` through PrestaShop's asset API and mounts browser-safe JSON. Gateway-supplied HTML is not rendered.
 - Authorization and partial capture stay on hold. Full authenticated settlement is required for a paid transition.
 
 The merchant's form determines method availability; no duplicate method toggles are added to PrestaShop. Permit the official form's required origins in your storefront CSP.
 
 > 
-Version 0.1.3 supports one shipping package per cart. Multishipping/multi-package carts are rejected before a financial API call. Reconcile an existing attempt before changing totals, currency, merchant or checkout settings; an expired/missing token does not authorize a fresh charge.
+Version 0.1.4 supports one shipping package per cart. Multishipping/multi-package carts are rejected before a financial API call. Reconcile an existing attempt before changing totals, currency, merchant or checkout settings; an expired/missing token does not authorize a fresh charge.
 
 
 Native computing-precision totals use PrestaShop’s exact decimal rounding before minor-unit conversion; currency precision must match the gateway ISO exponent. Half-odd rounding with nonzero sub-minor precision requires manual reconciliation because the native decimal library lacks that mode. Credential rotations retain encrypted history and two previous webhook secrets; a shop with financial history cannot be rebound to another merchant ID.
@@ -105,7 +105,7 @@ php tools/build.php
 php tools/check-artifact.php
 ```
 
-Default builds resolve public `lunixi/php-sdk:0.29.3`. Before that registry version is published, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
+Default builds resolve public `lunixi/php-sdk:0.29.5`. Before that registry version is published, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
 
 Validation includes PHPCS, PHPStan level 8 against an installed native platform, Composer audit, artifact/secret-boundary checks and real native models/database tests with synthetic gateway transport. Tests exercise a real database-trigger rollback, stable retry keys, encrypted storage, ownership/CSRF gates, verified webhook/GET, replay, capture/partial capture/void/refund and uninstall retention. A separate fresh-process test checks reinstall.
 
@@ -115,7 +115,17 @@ A registered TEST-merchant checkout/webhook/refund run and storefront/theme acce
 The informational return accepts only the order locator from the URL query, discards at most 1 MiB of POST body without interpreting any payment fields, then returns an empty 303 to the native shop return URL. The POST does not load an order or call the gateway; unknown order IDs receive the same redirect. The resumed GET retains native customer/guest authentication and order/shop ownership before authenticated reconciliation. Checkout CSRF remains required. Apply matching request-body limits at the reverse proxy as PHP may buffer input before controller execution.
 
 
-Release 0.1.3 verification: **65 native assertions on each of PrestaShop 8.2.4 and 9.2.0** / PHP 8.3.6 / MariaDB 11, **35 real HTTP assertions**, fresh-request reinstall, PHPStan level 8 against each distinct native source root, PHPCS, Composer audits and standalone artifact/secret checks. Fresh activation was repeated after uninstall without manually clearing platform caches. HTTP tests use a genuine native login by a different synthetic customer and prove order ownership still returns 403; all gateway financial responses are synthetic.
+Recorded 0.1.3 baseline verification: **65 native assertions on each of PrestaShop 8.2.4 and 9.2.0** / PHP 8.3.6 / MariaDB 11, **35 real HTTP assertions**, fresh-request reinstall, PHPStan level 8 against each distinct native source root, PHPCS, Composer audits and standalone artifact/secret checks. Fresh activation was repeated after uninstall without manually clearing platform caches. HTTP tests use a genuine native login by a different synthetic customer and prove order ownership still returns 403; all gateway financial responses are synthetic.
 
 
-Turkish catalog verification initializes the actual native `tr-TR` locale loader, as a Turkish request does, and asserts both Shop and Admin dictionaries. It does not ask an already-English BO translator to discover an uninitialized locale after installation. Version 0.1.3 uses the native ObjectModel shop-association API shared by PrestaShop 8 and 9 for employee access checks. Persisted native employee/profile/session tests verify own-shop access and reject foreign-shop, read-only and logged-out access before financial IO; payment calculations and gateway behavior are unchanged. `VERSION` is the merchant ZIP version source even when a source publisher strips Composer's optional version field.
+Turkish catalog verification initializes the actual native `tr-TR` locale loader, as a Turkish request does, and asserts both Shop and Admin dictionaries. It does not ask an already-English BO translator to discover an uninitialized locale after installation. Version 0.1.4 uses the native ObjectModel shop-association API shared by PrestaShop 8 and 9 for employee access checks. Persisted native employee/profile/session tests verify own-shop access and reject foreign-shop, read-only and logged-out access before financial IO; payment calculations and gateway behavior are unchanged. `VERSION` is the merchant ZIP version source even when a source publisher strips Composer's optional version field.
+
+## Checkout mode and existing attempts
+
+Embedded checkout is the default; optional hosted checkout uses the exact validated `paymentPageUrl` returned by the backend. Both modes open the same Lunixi form and support the methods, multi-card, installments and insurance enabled for the merchant. None of these features requires redirecting. Never derive a payment-page URL from the browser token.
+
+Existing explicit hosted settings are retained. Checkout mode, callback, preauthorization and locale are bound to an attempt's original request. Changing them cannot reset its request hash or idempotency key. If an older attempt has no stored backend payment-page URL, optional redirect fails closed: reconcile that attempt rather than constructing a URL, deleting history or creating a replacement key. Embedded rendering still uses the protected browser configuration. Keep the signed webhook, authenticated settlement checks and informational 3DS/split return routes.
+
+For the focused native form/URL regression only, run `LUNIXI_NATIVE_TEST=1 LUNIXI_NATIVE_FORM_ONLY=1 php tests/native.php /absolute/disposable-shop`. It checks embedded default, retained explicit hosted settings, exact backend URL persistence and frozen-attempt handling without live payments.
+
+Current 0.1.4 focused form/URL checks: **40 assertions on each of PrestaShop 8.2.4 and 9.2.0**, PHPStan level 8 against both native roots, PHPCS and standalone artifact checks passed. The earlier full native/HTTP results above remain the recorded 0.1.3 baseline. Live/merchant acceptance is deferred.

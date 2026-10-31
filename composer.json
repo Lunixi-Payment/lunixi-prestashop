@@ -9,7 +9,7 @@
         "ext-curl": "*",
         "ext-json": "*",
         "ext-pdo": "*",
-        "lunixi/php-sdk": "^0.29.3"
+        "lunixi/php-sdk": "^0.29.5"
     },
     "config": {
         "allow-plugins": false,

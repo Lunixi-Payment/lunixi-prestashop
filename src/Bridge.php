@@ -58,7 +58,7 @@ final class Bridge
         $currency = new \Currency((int) $order->id_currency);
         $credentials = Settings::secrets((int) $order->id_shop);
         $snapshot = new OrderSnapshot($credentials['merchantId'], self::key($order), self::total($order), (string) $currency->iso_code);
-        $hosted = \Configuration::get('LUNIXI_MODE', null, null, (int) $order->id_shop) !== 'embedded';
+        $hosted = Settings::mode((int) $order->id_shop) === 'hosted';
         $preauth = (bool) \Configuration::get('LUNIXI_PREAUTH', null, null, (int) $order->id_shop);
         $locale = (new \Language((int) $order->id_lang))->iso_code === 'tr' ? 'tr' : 'en';
         return $this->service->start(self::key($order), $snapshot, $callback, $hosted, $preauth, $locale);

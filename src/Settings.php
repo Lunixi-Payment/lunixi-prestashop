@@ -28,6 +28,11 @@ final class Settings
         }
         return $data;
     }
+    /** Embedded is the default; preserve an explicitly selected hosted mode. */
+    public static function mode(int $shopId): string
+    {
+        return \Configuration::get('LUNIXI_MODE', null, null, $shopId) === 'hosted' ? 'hosted' : 'embedded';
+    }
     /** Preserve existing credentials when a password field is left empty. */
     public static function save(int $shopId, string $merchantId, string $keyId, string $privateKey, string $secret, string $mode, bool $preauth): void
     {

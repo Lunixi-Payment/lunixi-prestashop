@@ -6,7 +6,7 @@ description: PrestaShop 8/9 için native Lunixi ödeme modülü — kurulum ZIP�
 
 # PrestaShop
 
-`lunixipay`, PrestaShop’un native ödeme/sipariş akışını Lunixi’ye bağlar. Mağaza gömülü veya yönlendirmeli Lunixi formunu seçer. Açık yöntemler, taksitler, uygun alternatif yöntemler, sigorta ve çoklu kart Lunixi’den yönetilir. Modül PAN/CVV toplamaz.
+`lunixipay`, PrestaShop’un native ödeme/sipariş akışını Lunixi’ye bağlar. Mevcut Lunixi formu varsayılan olarak mağaza içinde açılır; yönlendirme isteğe bağlıdır. Açık yöntemler, taksitler, uygun alternatif yöntemler, sigorta ve çoklu kart Lunixi’den yönetilir. Modül PAN/CVV toplamaz.
 
 Mağaza ZIP’i namespace ile izole [PHP SDK](/sdks/php) içerir. İmza, tam sayı tutar, kalıcı deneme, webhook, split-parent kanıtı ve güvenli retry ortak Commerce çekirdeğindedir. Mağaza sunucusunda Composer gerekmez.
 
@@ -17,7 +17,7 @@ Mağaza ZIP’i namespace ile izole [PHP SDK](/sdks/php) içerir. İmza, tam say
 - HTTPS mağaza/webhook; kayıtlı Lunixi merchant/key ve webhook secret.
 - Veritabanı/public web dizini dışında, bağımsız ve yedekli 32 bayt şifreleme anahtarı.
 
-Kaynak: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). 0.1.3 kaynak/modül yayını, PrestaShop Addons onayı anlamına gelmez. Native doğrulama resmi PrestaShop 8.2.4 ve 9.2.0 kaynakları üzerinde, ayrı PHP 8.3.6 / MariaDB 11 test mağazalarında sentetik gateway ile çalıştırıldı. Her sürümde 65 native assertion geçti; iki resmi Docker imajındaki CI koşumları bağımsız yayın kapılarıdır.
+Kaynak: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). 0.1.4 kaynak/modül yayını, PrestaShop Addons onayı anlamına gelmez. Önceki 0.1.3 native doğrulaması resmi PrestaShop 8.2.4 ve 9.2.0 kaynakları üzerinde, ayrı PHP 8.3.6 / MariaDB 11 test mağazalarında sentetik gateway ile çalıştırıldı. Her sürümde 65 native assertion geçti; iki resmi Docker imajındaki CI koşumları bağımsız yayın kapılarıdır.
 
 Sunucuda anahtar üretin:
 
@@ -27,7 +27,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Secret manager üzerinden PHP worker ortamına `LUNIXI_ENCRYPTION_KEY` olarak ekleyin. Veritabanı/cookie/private/webhook anahtarından türetmeyin. Yükseltme ve yeniden başlatmada koruyun; kayıp anahtar geçmiş şifreli bilgileri okunamaz yapar.
 
-**Module Manager → Upload a module** üzerinden **`lunixipay-0.1.3.zip`** yükleyip **Lunixi Payments** modülünü kurun. ZIP kökü `lunixipay/` olmalıdır. GitHub kaynak arşivi, build edilmiş kurulum ZIP’i değildir.
+**Module Manager → Upload a module** üzerinden **`lunixipay-0.1.4.zip`** yükleyip **Lunixi Payments** modülünü kurun. ZIP kökü `lunixipay/` olmalıdır. GitHub kaynak arşivi, build edilmiş kurulum ZIP’i değildir.
 
 ## Üye işyeri ayarları
 
@@ -38,7 +38,7 @@ Multistore’da tek mağaza seçip kaydedin:
 | Merchant ID | Tahsilat kanıtının bağlandığı üye işyeri kimliği |
 | Key ID / özel Ed25519 anahtarı | Kayıtlı sunucu imza bilgileri |
 | Webhook secret | Merchant webhook bağlantısıyla eşleşen secret |
-| Form modu | `pay.lunixi.com` yönlendirmesi veya gömülü Lunixi formu |
+| Form modu | Mağaza içi gömülü Lunixi formu (varsayılan); isteğe bağlı yönlendirme backend `paymentPageUrl` adresini kullanır |
 | Önce provizyon, sonra tahsilat | Capture’a kadar siparişi beklemede tutar |
 
 Secret alanları tekrar gösterilmez; boş bırakmak kayıtlı değeri korur. Bilgiler bağımsız sunucu anahtarıyla authenticated encryption kullanılarak saklanır. Kayıt için native modül düzenleme yetkisi ve admin CSRF gerekir.
@@ -53,14 +53,14 @@ Tek **Lunixi ile güvenle öde** seçeneği görünür. Token gösterilmeden nat
 
 Adaptör ödenmemiş native sipariş oluşturur, aynı sepetin sipariş dönüşümünü kilitler, DECIMAL toplamı string okur ve ağ çağrısından önce denemeyi kalıcı kaydeder. Zaman aşımı aynı anahtarı korur; tekrar sessizce yeni tahsilat açmaz.
 
-- Yönlendirmeli mod yalnız `https://pay.lunixi.com/payment/<token>` adresine gider.
-- Gömülü mod, resmi `https://cdn.lunixi.com/lunixi-checkout.min.js` dosyasını platformun asset API’siyle yükleyip güvenli JSON ile bağlar. Gateway HTML’i basılmaz.
+- İsteğe bağlı yönlendirme, backend'in döndürdüğü doğrulanmış `paymentPageUrl` adresine gider; token'dan adres üretilmez.
+- Varsayılan gömülü mod, resmi `https://cdn.lunixi.com/lunixi-checkout.min.js` dosyasını platformun asset API’siyle yükleyip güvenli JSON ile bağlar. Gateway HTML’i basılmaz.
 - Provizyon ve kısmi capture beklemede kalır. Ödenmiş geçişi tam, doğrulanmış tahsilat ister.
 
 Yöntemleri merchant formu belirler; ayrıca yöntem aç/kapa anahtarı üretilmez. CSP’de resmi formun gerektirdiği origin’lere izin verin.
 
 > 
-0.1.3 sepet başına tek kargo paketini destekler. Çok paketli/multishipping sepet finansal çağrıdan önce reddedilir. Toplam, para birimi, merchant veya form ayarını değiştirmeden mevcut denemeyi sonuçlandırın. Süresi dolmuş/eksik token yeni tahsilat yetkisi değildir.
+0.1.4 sepet başına tek kargo paketini destekler. Çok paketli/multishipping sepet finansal çağrıdan önce reddedilir. Toplam, para birimi, merchant veya form ayarını değiştirmeden mevcut denemeyi sonuçlandırın. Süresi dolmuş/eksik token yeni tahsilat yetkisi değildir.
 
 
 Native hesaplama hassasiyetindeki toplam, alt birime çevrilmeden PrestaShop’un kesin decimal kütüphanesiyle yuvarlanır; para birimi hassasiyeti gateway ISO üssüyle eşleşmelidir. Alt birimden küçük kesirli half-odd yuvarlama, native kütüphane desteklemediği için mutabakat gerektirir. Rotasyonda şifreli credential geçmişi ve iki önceki webhook secret korunur; ödeme geçmişi bulunan mağaza başka merchant ID’ye bağlanamaz.
@@ -105,7 +105,7 @@ php tools/build.php
 php tools/check-artifact.php
 ```
 
-Varsayılan build public `lunixi/php-sdk:0.29.3` paketini çözer. Registry sürümü henüz yayımlanmadıysa `php tools/build.php /tam/yol/lunixi-php` ile incelenmiş kaynak verin. Build yolu ZIP’e çıkmaz. PHP-Scoper SDK’yı `Lunixi\PrestaShop\Vendor\Lunixi\Sdk` altında izole eder; kardeş kaynak, scope’suz alias veya site genelinde Composer gerektirmez.
+Varsayılan build public `lunixi/php-sdk:0.29.5` paketini çözer. Registry sürümü henüz yayımlanmadıysa `php tools/build.php /tam/yol/lunixi-php` ile incelenmiş kaynak verin. Build yolu ZIP’e çıkmaz. PHP-Scoper SDK’yı `Lunixi\PrestaShop\Vendor\Lunixi\Sdk` altında izole eder; kardeş kaynak, scope’suz alias veya site genelinde Composer gerektirmez.
 
 Kontroller PHPCS, gerçek native platform üzerinde PHPStan level 8, Composer audit, ZIP/secret sınır kontrolü ve sentetik gateway’li gerçek platform/veritabanı testlerini içerir. Gerçek DB trigger’ıyla rollback, aynı retry anahtarı, şifreleme, sahiplik/CSRF, webhook/GET, replay, capture/kısmi capture/void/iade ve kaldırmada geçmiş doğrulanır. Yeniden kurulum ayrı PHP sürecinde test edilir.
 
@@ -115,7 +115,17 @@ Canlı işlemden önce kayıtlı TEST merchant ile uçtan uca ödeme/webhook/iad
 Bilgi dönüşü sipariş kimliğini yalnız URL sorgusundan alır; en fazla 1 MiB POST gövdesini ödeme alanlarını yorumlamadan atar ve yerel mağaza dönüş adresine boş 303 verir. POST sipariş yüklemez veya gateway çağırmaz; bilinmeyen sipariş de aynı yönlendirmeyi alır. Sonraki GET, yetkili mutabakattan önce yerel müşteri/misafir kimliğini, sipariş ve mağaza sahipliğini denetler. Checkout CSRF zorunluluğu sürer. PHP controller çalışmadan önce girdiyi belleğe alabileceği için proxy gövde sınırını da uygulayın.
 
 
-0.1.3 doğrulaması: PrestaShop 8.2.4 ve 9.2.0 sürümlerinin her birinde / PHP 8.3.6 / MariaDB 11 üzerinde **65 native assertion**, **35 gerçek HTTP assertion**, ayrı süreçte yeniden kurulum, her yerel kaynak kökü için ayrı PHPStan seviye 8, PHPCS, Composer audit ve bağımsız ZIP/sır kontrolleri. Kaldırma sonrası yeniden aktivasyon, platform önbelleği elle temizlenmeden tekrar doğrulandı. HTTP testi başka sentetik müşteriyle gerçek yerel giriş yapar ve sipariş sahipliğinin 403 verdiğini kanıtlar; gateway finans yanıtları sentetiktir.
+Önceki 0.1.3 temel doğrulaması: PrestaShop 8.2.4 ve 9.2.0 sürümlerinin her birinde / PHP 8.3.6 / MariaDB 11 üzerinde **65 native assertion**, **35 gerçek HTTP assertion**, ayrı süreçte yeniden kurulum, her yerel kaynak kökü için ayrı PHPStan seviye 8, PHPCS, Composer audit ve bağımsız ZIP/sır kontrolleri. Kaldırma sonrası yeniden aktivasyon, platform önbelleği elle temizlenmeden tekrar doğrulandı. HTTP testi başka sentetik müşteriyle gerçek yerel giriş yapar ve sipariş sahipliğinin 403 verdiğini kanıtlar; gateway finans yanıtları sentetiktir.
 
 
-0.1.3 testleri, gerçek yerel `tr-TR` locale loader ile hem Shop hem Admin sözlüğünü doğrular; kurulumdan önce İngilizce açılmış BO translator'ına yüklenmemiş locale sorulmaz. 0.1.3 çalışan yetkisi kontrolünde PrestaShop 8 ve 9’un ortak ObjectModel mağaza eşleştirme API’sini kullanır. Gerçek yerel çalışan, profil ve oturum testleri kendi mağazasında erişimi doğrular; başka mağaza, salt okunur ve oturumsuz erişimi finansal çağrıdan önce reddeder. Ödeme hesaplamaları ve gateway davranışı değişmez. Aynı 65 assertion resmi 8.2.4 paketinde ayrı yerel PHP 8.3.6/MariaDB ortamında da geçer; iki resmi Docker imajındaki CI koşumları ayrı yayın kapısıdır. Composer version alanı yayıncı tarafından kaldırılsa da ZIP sürümü `VERSION` dosyasından gelir.
+Önceki 0.1.3 testleri, gerçek yerel `tr-TR` locale loader ile hem Shop hem Admin sözlüğünü doğrular; kurulumdan önce İngilizce açılmış BO translator'ına yüklenmemiş locale sorulmaz. 0.1.3 çalışan yetkisi kontrolünde PrestaShop 8 ve 9’un ortak ObjectModel mağaza eşleştirme API’sini kullanır. Gerçek yerel çalışan, profil ve oturum testleri kendi mağazasında erişimi doğrular; başka mağaza, salt okunur ve oturumsuz erişimi finansal çağrıdan önce reddeder. Bu önceki yetki düzeltmesi ödeme hesaplamalarını ve gateway davranışını değiştirmedi. Aynı 65 assertion resmi 8.2.4 paketinde ayrı yerel PHP 8.3.6/MariaDB ortamında da geçer; iki resmi Docker imajındaki CI koşumları ayrı yayın kapısıdır. Composer version alanı yayıncı tarafından kaldırılsa da ZIP sürümü `VERSION` dosyasından gelir.
+
+## Form modu ve mevcut ödeme denemeleri
+
+Varsayılan, mağaza içinde açılan gömülü Lunixi formudur. İsteğe bağlı yönlendirme, backend'in döndürdüğü doğrulanmış `paymentPageUrl` adresini birebir kullanır. İki mod da aynı formu açar; açık yöntemler, çoklu kart, taksit ve sigorta Lunixi panelinden yönetilir ve yönlendirme gerektirmez. Tarayıcı token'ından ödeme sayfası adresi üretilmez.
+
+Önceden açıkça seçilmiş yönlendirme ayarları korunur. Form modu, dönüş adresi, ön provizyon ve dil özgün ödeme isteğine bağlıdır; değiştirmek denemenin hash veya idempotency anahtarını sıfırlayamaz. Eski bir denemede backend ödeme adresi kayıtlı değilse yönlendirme güvenli biçimde durur; adres üretmek, geçmişi silmek veya yeni anahtar açmak yerine mevcut denemeyi uzlaştırın. Gömülü form korumalı tarayıcı yapılandırmasını kullanır. İmzalı webhook, doğrulanmış tahsilat kontrolleri ve bilgilendirici 3DS/çoklu kart dönüşleri korunur.
+
+Yalnız yerel form/URL regresyonu için `LUNIXI_NATIVE_TEST=1 LUNIXI_NATIVE_FORM_ONLY=1 php tests/native.php /tam/yol/ayri-test-magazasi` kullanılır. Gömülü varsayılan, açık yönlendirme tercihi, backend adresinin kalıcılığı ve değişmez deneme kontrol edilir; canlı ödeme yapılmaz.
+
+Güncel 0.1.4 odaklı form/URL kontrolü: **PrestaShop 8.2.4 ve 9.2.0 üzerinde ayrı ayrı 40 assertion**, iki yerel kaynak kökünde PHPStan seviye 8, PHPCS ve bağımsız ZIP kontrolleri geçti. Yukarıdaki önceki tam native/HTTP sonuçları 0.1.3 temel doğrulamasıdır. Canlı/merchant kabulü ertelenmiştir.

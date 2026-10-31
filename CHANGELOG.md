@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 — 2026-10-31
+
+- Default new/unset checkout configuration to the existing embedded Lunixi form, retaining explicitly selected hosted mode. Both modes share all merchant-enabled form features.
+- Bundle PHP SDK 0.29.5 and use its validated, encrypted backend `paymentPageUrl` for optional redirects; never derive a hosted URL from a browser token.
+- Keep historical attempt keys/hashes/settings and 3DS/split callbacks intact; a missing or invalid hosted URL stays pending for reconciliation.
+
 ## 0.1.3 — 2026-10-31
 
 - Fix PrestaShop 8 employee administration by using the native ObjectModel `getAssociatedShops()` API shared with PrestaShop 9; retain authenticated session, order-edit permission and strict integer shop association checks.

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Lunixi\PrestaShop\Runtime;
-use Lunixi\PrestaShop\{Access, Bridge};
+use Lunixi\PrestaShop\{Access, Bridge, Settings};
 
 class LunixipayCheckoutModuleFrontController extends ModuleFrontController
 {
@@ -38,7 +38,7 @@ class LunixipayCheckoutModuleFrontController extends ModuleFrontController
             $session = (new Bridge((int) $order->id_shop))->start($order, $callback);
             header('Cache-Control: private, no-store');
             header('Referrer-Policy: no-referrer');
-            if (Configuration::get('LUNIXI_MODE', null, null, (int) $order->id_shop) !== 'embedded') {
+            if (Settings::mode((int) $order->id_shop) === 'hosted') {
                 Tools::redirect($session->hostedUrl());
             }
             Runtime::smarty($this->context)->assign(['lunixi_browser_config' => $session->browserConfig()]);

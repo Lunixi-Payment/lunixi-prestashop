@@ -19,7 +19,7 @@ class Lunixipay extends PaymentModule
     {
         $this->name = 'lunixipay';
         $this->tab = 'payments_gateways';
-        $this->version = '0.1.3';
+        $this->version = '0.1.4';
         $this->author = 'Lunixi';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -155,7 +155,7 @@ class Lunixipay extends PaymentModule
         $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
         $helper->token = Tools::getAdminTokenLite('AdminModules');
         $helper->fields_value = ['LUNIXI_MERCHANT' => $data['merchantId'] ?? '', 'LUNIXI_KEY_ID' => $data['keyId'] ?? '',
-            'LUNIXI_PRIVATE_KEY' => '', 'LUNIXI_WEBHOOK_SECRET' => '', 'LUNIXI_MODE' => Configuration::get('LUNIXI_MODE', null, null, $shopId) ?: 'hosted',
+            'LUNIXI_PRIVATE_KEY' => '', 'LUNIXI_WEBHOOK_SECRET' => '', 'LUNIXI_MODE' => Settings::mode($shopId),
             'LUNIXI_PREAUTH' => (int) Configuration::get('LUNIXI_PREAUTH', null, null, $shopId)];
         $t = fn(string $s): string => $this->trans($s, [], 'Modules.Lunixipay.Admin');
         $form = ['form' => ['legend' => ['title' => $this->displayName], 'input' => [
@@ -164,7 +164,7 @@ class Lunixipay extends PaymentModule
             ['type' => 'textarea', 'name' => 'LUNIXI_PRIVATE_KEY', 'label' => $t('Private Ed25519 key'), 'desc' => $t('Leave empty to keep the saved key. Secrets are never displayed.')],
             ['type' => 'password', 'name' => 'LUNIXI_WEBHOOK_SECRET', 'label' => $t('Webhook secret'), 'desc' => $t('Leave empty to keep the saved secret.')],
             ['type' => 'select', 'name' => 'LUNIXI_MODE', 'label' => $t('Checkout mode'), 'options' => ['query' => [
-                ['id' => 'hosted', 'name' => $t('Hosted Lunixi form')], ['id' => 'embedded', 'name' => $t('Embedded Lunixi form')]], 'id' => 'id', 'name' => 'name']],
+                ['id' => 'embedded', 'name' => $t('Embedded Lunixi form')], ['id' => 'hosted', 'name' => $t('Hosted Lunixi form')]], 'id' => 'id', 'name' => 'name']],
             ['type' => 'switch', 'name' => 'LUNIXI_PREAUTH', 'label' => $t('Authorize first, capture later'), 'is_bool' => true,
              'values' => [['id' => 'preauth_on', 'value' => 1, 'label' => $t('Enabled')], ['id' => 'preauth_off', 'value' => 0, 'label' => $t('Disabled')]]]
         ], 'submit' => ['title' => $t('Save')]]];

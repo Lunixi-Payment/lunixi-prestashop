@@ -31,6 +31,7 @@ use Lunixi\PrestaShop\Vendor\Lunixi\Sdk\Commerce\Money;
 
 final class NativeGateway implements HttpClientInterface
 {
+    public ?string $paymentPageUrl = 'https://pay.lunixi.com/payment/server-issued-page-0123456789';
     public array $calls = [];
     public array $intent = [];
     public int $captured = 0;
@@ -50,7 +51,9 @@ final class NativeGateway implements HttpClientInterface
             $this->keys[] = $headers['Idempotency-Key'];
             if ($this->failIntent) { throw new RuntimeException('Synthetic uncertain network outcome.'); }
             $this->intent = $data;
-            return $this->json(['data' => ['paymentId' => 'native_intent_' . $data['orderId'], 'token' => 'native_checkout_synthetic_TOKEN', 'status' => $this->status]]);
+            $result = ['paymentId' => 'native_intent_' . $data['orderId'], 'token' => 'native_checkout_synthetic_TOKEN', 'status' => $this->status];
+            if ($this->paymentPageUrl !== null) { $result['paymentPageUrl'] = $this->paymentPageUrl; }
+            return $this->json(['data' => $result]);
         }
         if ($method === 'POST') {
             $key = $headers['Idempotency-Key'] ?? '';
@@ -93,7 +96,10 @@ final class NativeAcceptance
         $context->container = \PrestaShop\PrestaShop\Adapter\ContainerBuilder::getContainer('front', false);
         Configuration::updateValue('PS_MAIL_METHOD', 3); // Synthetic tests never send email.
         $seed = sodium_crypto_sign_seed_keypair(str_repeat('S', 32));
+        Configuration::deleteByName('LUNIXI_MODE');
+        $this->ok(Settings::mode(1) === 'embedded', 'missing mode defaults to on-site form');
         Settings::save(1, 'native_merchant', 'mk_test_sk_synthetic_native', base64_encode(sodium_crypto_sign_secretkey($seed)), 'native_webhook_secret', 'hosted', false);
+        $this->ok(Settings::mode(1) === 'hosted', 'explicit existing hosted preference retained');
         $cipher = (string) Configuration::get('LUNIXI_CREDENTIALS');
         $this->ok(!str_contains($cipher, 'native_webhook_secret'), 'admin credentials encrypted');
         $this->ok(Settings::secrets(1)['merchantId'] === 'native_merchant', 'credentials decrypt');
@@ -128,10 +134,31 @@ final class NativeAcceptance
         $transport->failIntent = false;
         $session = $bridge->start($order, 'https://merchant.example/return');
         $this->ok(count(array_unique(array_filter($transport->keys, 'is_string'))) === 1, 'timeout uses same key');
-        $this->ok(str_starts_with($session->hostedUrl(), 'https://pay.lunixi.com/payment/'), 'fixed hosted origin');
+        $this->ok($session->hostedUrl() === $transport->paymentPageUrl, 'exact backend hosted URL used independently of embedded token');
         $record = Storage::attempt(Bridge::key($order));
         $this->ok(!str_contains($record['token'], 'native_checkout'), 'checkout token encrypted');
         $this->ok($bridge->start($order, 'https://merchant.example/return')->token === $session->token, 'persisted token reused');
+        $this->ok(!str_contains($record['paymentPageUrl'], 'server-issued-page'), 'backend payment-page URL encrypted');
+        $calls = count($transport->calls);
+        $this->ok($bridge->start($order, 'https://merchant.example/return')->hostedUrl() === $session->hostedUrl(), 'persisted backend URL reused exactly');
+        $this->ok(count($transport->calls) === $calls, 'cached URL resume does not create another intent');
+        if (getenv('LUNIXI_NATIVE_FORM_ONLY') === '1') {
+            $missingOrder = $module->pendingOrder($this->cart($context));
+            $missingTransport = new NativeGateway(); $missingTransport->paymentPageUrl = null;
+            $missingSdk = new LunixiClient(new SdkConfiguration(['baseUrl' => Settings::GATEWAY, 'keyId' => 'mk_test_sk_synthetic_native',
+                'privateKey' => base64_encode(sodium_crypto_sign_secretkey($seed)), 'maxRetries' => 0]), $missingTransport);
+            $missingBridge = new Bridge(1, $missingSdk);
+            $missing = $missingBridge->start($missingOrder, 'https://merchant.example/return');
+            $this->rejects(fn() => $missing->hostedUrl(), 'missing URL cannot be reconstructed from browser token');
+            $missingBefore = Storage::attempt(Bridge::key($missingOrder));
+            $this->rejects(fn() => Settings::save(1, 'native_merchant', 'mk_test_sk_synthetic_native', '', '', 'invalid-mode', false), 'invalid presentation setting rejected');
+            Settings::save(1, 'native_merchant', 'mk_test_sk_synthetic_native', '', '', 'embedded', false);
+            $this->rejects(fn() => $missingBridge->start($missingOrder, 'https://merchant.example/return'), 'mode change cannot replace frozen attempt');
+            $missingAfter = Storage::attempt(Bridge::key($missingOrder));
+            $this->ok($missingBefore['key'] === $missingAfter['key'] && $missingBefore['requestHash'] === $missingAfter['requestHash'], 'mode change preserves exact historical key and hash');
+            echo 'Native PrestaShop form contract: ' . $this->assertions . " assertions passed.\n";
+            return;
+        }
         $this->ok(count($module->hookPaymentOptions([])) === 1, 'native PaymentOption rendered');
         $this->ok(!$bridge->reconcile($order)->isPaid(), 'client/browser callback cannot supply success');
         $transport->status = 'CAPTURED'; $transport->captured = 10050;
