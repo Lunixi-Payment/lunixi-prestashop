@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 — 2026-10-31
+
+- Verify Turkish Shop and Admin catalogs through the actual native locale loader; do not ask an already-English BO translator to load an uninitialized locale after module installation. No financial behavior changes.
+- Add an authoritative VERSION file and derive merchant ZIP metadata independently from Composer's optional version field.
+
 ## 0.1.1 — 2026-10-31
 
 - Accept the gateway informational POST return through a bounded, stateless same-origin 303 adapter. Ignore submitted payment fields and require native ownership on the resumed GET.

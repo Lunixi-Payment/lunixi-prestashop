@@ -17,7 +17,7 @@ Mağaza ZIP’i namespace ile izole [PHP SDK](/sdks/php) içerir. İmza, tam say
 - HTTPS mağaza/webhook; kayıtlı Lunixi merchant/key ve webhook secret.
 - Veritabanı/public web dizini dışında, bağımsız ve yedekli 32 bayt şifreleme anahtarı.
 
-Kaynak: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). 0.1.1 kaynak/modül yayını, PrestaShop Addons onayı anlamına gelmez. Native doğrulama PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11’de sentetik gateway ile çalıştırıldı. CI matrisinde 8.2.4 de vardır; bağımsız 8.x doğrulama iddiasından önce o koşum geçmelidir.
+Kaynak: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). 0.1.2 kaynak/modül yayını, PrestaShop Addons onayı anlamına gelmez. Native doğrulama PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11’de sentetik gateway ile çalıştırıldı. CI matrisinde 8.2.4 de vardır; bağımsız 8.x doğrulama iddiasından önce o koşum geçmelidir.
 
 Sunucuda anahtar üretin:
 
@@ -27,7 +27,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Secret manager üzerinden PHP worker ortamına `LUNIXI_ENCRYPTION_KEY` olarak ekleyin. Veritabanı/cookie/private/webhook anahtarından türetmeyin. Yükseltme ve yeniden başlatmada koruyun; kayıp anahtar geçmiş şifreli bilgileri okunamaz yapar.
 
-**Module Manager → Upload a module** üzerinden **`lunixipay-0.1.1.zip`** yükleyip **Lunixi Payments** modülünü kurun. ZIP kökü `lunixipay/` olmalıdır. GitHub kaynak arşivi, build edilmiş kurulum ZIP’i değildir.
+**Module Manager → Upload a module** üzerinden **`lunixipay-0.1.2.zip`** yükleyip **Lunixi Payments** modülünü kurun. ZIP kökü `lunixipay/` olmalıdır. GitHub kaynak arşivi, build edilmiş kurulum ZIP’i değildir.
 
 ## Üye işyeri ayarları
 
@@ -60,7 +60,7 @@ Adaptör ödenmemiş native sipariş oluşturur, aynı sepetin sipariş dönüş
 Yöntemleri merchant formu belirler; ayrıca yöntem aç/kapa anahtarı üretilmez. CSP’de resmi formun gerektirdiği origin’lere izin verin.
 
 > 
-0.1.1 sepet başına tek kargo paketini destekler. Çok paketli/multishipping sepet finansal çağrıdan önce reddedilir. Toplam, para birimi, merchant veya form ayarını değiştirmeden mevcut denemeyi sonuçlandırın. Süresi dolmuş/eksik token yeni tahsilat yetkisi değildir.
+0.1.2 sepet başına tek kargo paketini destekler. Çok paketli/multishipping sepet finansal çağrıdan önce reddedilir. Toplam, para birimi, merchant veya form ayarını değiştirmeden mevcut denemeyi sonuçlandırın. Süresi dolmuş/eksik token yeni tahsilat yetkisi değildir.
 
 
 Native hesaplama hassasiyetindeki toplam, alt birime çevrilmeden PrestaShop’un kesin decimal kütüphanesiyle yuvarlanır; para birimi hassasiyeti gateway ISO üssüyle eşleşmelidir. Alt birimden küçük kesirli half-odd yuvarlama, native kütüphane desteklemediği için mutabakat gerektirir. Rotasyonda şifreli credential geçmişi ve iki önceki webhook secret korunur; ödeme geçmişi bulunan mağaza başka merchant ID’ye bağlanamaz.
@@ -113,4 +113,7 @@ Canlı işlemden önce kayıtlı TEST merchant ile uçtan uca ödeme/webhook/iad
 Bilgi dönüşü sipariş kimliğini yalnız URL sorgusundan alır; en fazla 1 MiB POST gövdesini ödeme alanlarını yorumlamadan atar ve yerel mağaza dönüş adresine boş 303 verir. POST sipariş yüklemez veya gateway çağırmaz; bilinmeyen sipariş de aynı yönlendirmeyi alır. Sonraki GET, yetkili mutabakattan önce yerel müşteri/misafir kimliğini, sipariş ve mağaza sahipliğini denetler. Checkout CSRF zorunluluğu sürer. PHP controller çalışmadan önce girdiyi belleğe alabileceği için proxy gövde sınırını da uygulayın.
 
 
-0.1.1 doğrulaması: PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 üzerinde **52 native assertion**, **35 gerçek HTTP assertion**, ayrı süreçte yeniden kurulum, PHPStan seviye 8, PHPCS, Composer audit ve bağımsız ZIP/sır kontrolleri. Kaldırma sonrası yeniden aktivasyon, platform önbelleği elle temizlenmeden tekrar doğrulandı. HTTP testi başka sentetik müşteriyle gerçek yerel giriş yapar ve sipariş sahipliğinin 403 verdiğini kanıtlar; gateway finans yanıtları sentetiktir.
+0.1.2 doğrulaması: PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 üzerinde **53 native assertion**, **35 gerçek HTTP assertion**, ayrı süreçte yeniden kurulum, PHPStan seviye 8, PHPCS, Composer audit ve bağımsız ZIP/sır kontrolleri. Kaldırma sonrası yeniden aktivasyon, platform önbelleği elle temizlenmeden tekrar doğrulandı. HTTP testi başka sentetik müşteriyle gerçek yerel giriş yapar ve sipariş sahipliğinin 403 verdiğini kanıtlar; gateway finans yanıtları sentetiktir.
+
+
+0.1.2 testleri, gerçek yerel `tr-TR` locale loader ile hem Shop hem Admin sözlüğünü doğrular; kurulumdan önce İngilizce açılmış BO translator'ına yüklenmemiş locale sorulmaz. Düzeltme test/yayın metadatasıyla sınırlıdır; finans davranışı korunur. Aynı 53 assertion resmi 8.2.4 paketinde ayrı yerel PHP 8.3.6/MariaDB ortamında da geçer; iki resmi Docker imajındaki CI koşumları ayrı yayın kapısıdır. Composer version alanı yayıncı tarafından kaldırılsa da ZIP sürümü `VERSION` dosyasından gelir.

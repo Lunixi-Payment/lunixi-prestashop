@@ -193,7 +193,12 @@ final class NativeAcceptance
         $this->ok($voidBridge->mutate($voidOrder, $voidId, 'void', null)->state === 'failed', 'native void releases authorization');
         $this->ok($voidBridge->operationStatus($voidOrder, $voidId)['state'] === 'confirmed', 'native void confirmed from released balance');
         $this->ok((int) Storage::pdo()->query('SELECT COUNT(*) FROM ps_order_payment WHERE order_reference=' . Storage::pdo()->quote($voidOrder->reference))->fetchColumn() === 0, 'void creates no paid record');
-        $this->ok($module->getTranslator()->trans('Secure payment', [], 'Modules.Lunixipay.Shop', 'tr-TR') === 'Güvenli ödeme', 'native Turkish translation loaded');
+        // This suite booted the BO kernel in English before installing the module.
+        // Ask the actual native FO loader to initialize Turkish, as a Turkish request does;
+        // an English BO translator does not discover another locale's new module resources.
+        $turkish = $context->getTranslatorFromLocale('tr-TR');
+        $this->ok($turkish->trans('Secure payment', [], 'Modules.Lunixipay.Shop') === 'Güvenli ödeme', 'native Turkish Shop catalog loaded');
+        $this->ok($turkish->trans('Capture', [], 'Modules.Lunixipay.Admin') === 'Tahsil et', 'native Turkish Admin catalog loaded');
         // Only synthetic identities are passed to the separate real-HTTP acceptance process.
         $fixturePath = sys_get_temp_dir() . '/lunixi-prestashop-http-fixture.json';
         if (file_put_contents($fixturePath, json_encode(['orderId' => (int) $order->id, 'otherEmail' => $context->customer->email], JSON_THROW_ON_ERROR), LOCK_EX) === false) { throw new RuntimeException('Could not write HTTP acceptance fixture.'); }

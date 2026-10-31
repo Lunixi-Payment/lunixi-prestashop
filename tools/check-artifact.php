@@ -2,7 +2,9 @@
 /** Inspect the actual merchant artifact, including its standalone scoped autoloader. */
 declare(strict_types=1);
 $root = dirname(__DIR__);
-$path = $root . '/dist/lunixipay-0.1.1.zip';
+$version = trim((string) @file_get_contents($root . '/VERSION'));
+if (!preg_match('/^[0-9]+\.[0-9]+\.[0-9]+$/D', $version)) { throw new RuntimeException('Invalid release VERSION.'); }
+$path = $root . '/dist/lunixipay-' . $version . '.zip';
 if (!is_file($path)) { throw new RuntimeException('Build the release ZIP first.'); }
 $zip = new ZipArchive();
 if ($zip->open($path) !== true) { throw new RuntimeException('Invalid release ZIP.'); }
@@ -21,9 +23,10 @@ for ($index = 0; $index < $zip->numFiles; ++$index) {
     }
     ++$count;
 }
-foreach (['lunixipay/lunixipay.php', 'lunixipay/autoload.php', 'lunixipay/sdk/autoload.php', 'lunixipay/sdk/Commerce/CheckoutService.php', 'lunixipay/SECURITY.md', 'lunixipay/LICENSE', 'lunixipay/logo.png'] as $required) {
+foreach (['lunixipay/lunixipay.php', 'lunixipay/autoload.php', 'lunixipay/sdk/autoload.php', 'lunixipay/sdk/Commerce/CheckoutService.php', 'lunixipay/SECURITY.md', 'lunixipay/LICENSE', 'lunixipay/logo.png', 'lunixipay/VERSION'] as $required) {
     if ($zip->locateName($required) === false) { throw new RuntimeException('Required merchant file is missing.'); }
 }
+if (trim((string) $zip->getFromName('lunixipay/VERSION')) !== $version) { throw new RuntimeException('Artifact version mismatch.'); }
 $zip->close();
 require $root . '/build/lunixipay/autoload.php';
 if (!class_exists('Lunixi\\PrestaShop\\Vendor\\Lunixi\\Sdk\\Commerce\\CheckoutService') || class_exists('Lunixi\\Sdk\\Commerce\\CheckoutService', false)) {

@@ -5,6 +5,10 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__);
+$version = trim((string) @file_get_contents($root . '/VERSION'));
+if (!preg_match('/^[0-9]+\.[0-9]+\.[0-9]+$/D', $version)) {
+    throw new RuntimeException('Invalid or missing release VERSION.');
+}
 $local = $argv[1] ?? null;
 if ($local !== null && (!is_dir($local . '/src/Commerce') || !is_file($local . '/composer.json'))) {
     throw new RuntimeException('Supply an SDK source checkout with Commerce support.');
@@ -60,7 +64,7 @@ if ($local !== null) {
 }
 file_put_contents($input . '/composer.json', json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
 run(['composer', 'install', '--no-dev', '--no-interaction', '--prefer-dist', '--classmap-authoritative'], $input);
-foreach (['lunixipay.php', 'autoload.php', 'src', 'controllers', 'views', 'translations', 'logo.svg', 'logo.png', 'LICENSE', 'README.md', 'README.tr.md', 'CHANGELOG.md', 'SECURITY.md'] as $file) {
+foreach (['lunixipay.php', 'autoload.php', 'src', 'controllers', 'views', 'translations', 'logo.svg', 'logo.png', 'LICENSE', 'README.md', 'README.tr.md', 'CHANGELOG.md', 'SECURITY.md', 'VERSION'] as $file) {
     if (file_exists($root . '/' . $file)) {
         copyTree($root . '/' . $file, $output . '/' . $file);
     }
@@ -96,7 +100,7 @@ if (!is_dir($root . '/dist')) {
     mkdir($root . '/dist');
 }
 $zip = new ZipArchive();
-$target = $root . '/dist/lunixipay-0.1.1.zip';
+$target = $root . '/dist/lunixipay-' . $version . '.zip';
 if ($zip->open($target, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
     throw new RuntimeException('Cannot create ZIP.');
 }

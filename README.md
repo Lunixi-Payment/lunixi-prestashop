@@ -4,7 +4,7 @@
 
 [English](README.md) · [Türkçe](README.tr.md) · [Documentation](https://docs.lunixi.com/sdks/prestashop)
 
-Native payment module for **PrestaShop 8.1+ / 9.x**, version **0.1.1**. Merchants choose embedded checkout or the hosted `pay.lunixi.com` form. Payment methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in the Lunixi dashboard/form. The module never collects PAN/CVV.
+Native payment module for **PrestaShop 8.1+ / 9.x**, version **0.1.2**. Merchants choose embedded checkout or the hosted `pay.lunixi.com` form. Payment methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in the Lunixi dashboard/form. The module never collects PAN/CVV.
 
 Payment signing, encrypted checkout storage, settlement evidence, split-parent checks, fee correlation, idempotency and webhook replay rules use the shared **Lunixi PHP SDK Commerce kernel**. The release ZIP ships an isolated SDK namespace and standalone autoloader; merchants do **not** need Composer.
 
@@ -16,7 +16,7 @@ Payment signing, encrypted checkout storage, settlement evidence, split-parent c
 - Registered Lunixi merchant/key, its Ed25519 private key and webhook secret.
 - A separate **32-byte server encryption key**, backed up outside the database/public web root.
 
-Native acceptance was executed on PrestaShop **9.2.0**, PHP **8.3.6**, MariaDB **11**, including real orders/payment/history tables. The gateway transport was synthetic; no money moved. PrestaShop 8.2.4 is included in the CI platform matrix; its native run must pass before claiming an independently verified 8.x release. This repository/source release does not imply PrestaShop Addons approval or registry publication.
+Native acceptance was executed on PrestaShop **9.2.0**, PHP **8.3.6**, MariaDB **11**, including real orders/payment/history tables. The gateway transport was synthetic; no money moved. The native suite also passes against official PrestaShop 8.2.4 in an isolated local PHP 8.3.6/MariaDB fixture. CI independently runs the official 8.2.4 and 9.2.0 images; their supported runtime matrix remains a release gate. This repository/source release does not imply PrestaShop Addons approval or registry publication.
 
 ## Install the merchant ZIP
 
@@ -28,7 +28,7 @@ Native acceptance was executed on PrestaShop **9.2.0**, PHP **8.3.6**, MariaDB *
    ```
 
    Store the result in your secret manager. Do not derive it from the webhook secret, private key, database password or cookie key. Keep it stable across upgrades/restarts. Retain old keys during a planned credential/token migration; losing this key makes encrypted historical credentials/tokens unreadable.
-3. Upload `lunixipay-0.1.1.zip` using **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP contains a top-level `lunixipay/` directory. A source ZIP from GitHub is not the merchant installation ZIP.
+3. Upload `lunixipay-0.1.2.zip` using **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP contains a top-level `lunixipay/` directory. A source ZIP from GitHub is not the merchant installation ZIP.
 4. Select one shop when configuring a multistore installation. Save **Merchant ID**, **Key ID**, **Private Ed25519 key**, **Webhook secret**, **Checkout mode** and optional **Authorize first, capture later**. Once payments exist, a shop cannot be rebound to another merchant ID. Rotated credentials remain encrypted in history; current and two previous webhook secrets are accepted during rotation. Secret fields remain blank when editing; blank preserves the saved secret. Only an employee with module-edit permission and a valid admin CSRF token can save.
 5. Register the **exact webhook URL displayed in the configuration panel**, including its `shop_id`, in Lunixi. Subscribe to the documented merchant payment events. Configure payment currency/country/carrier/group availability through PrestaShop's native payment preferences.
 
@@ -89,7 +89,7 @@ The default build resolves `lunixi/php-sdk:0.29.3` from its public registry. If 
 php tools/build.php /absolute/path/to/lunixi-php
 ```
 
-The local path is used only as a build input. It is not included in the ZIP. PHP-Scoper prefixes the bundled SDK as `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; neither unscoped SDK aliases nor the site's Composer autoloader are registered. Build output is `dist/lunixipay-0.1.1.zip`. Review its SHA-256 and source before installation. No secrets, test fixtures, development dependencies or internal source paths are shipped.
+The local path is used only as a build input. It is not included in the ZIP. PHP-Scoper prefixes the bundled SDK as `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; neither unscoped SDK aliases nor the site's Composer autoloader are registered. Build output is `dist/lunixipay-0.1.2.zip`. Review its SHA-256 and source before installation. No secrets, test fixtures, development dependencies or internal source paths are shipped.
 
 ## Checks
 
@@ -113,4 +113,7 @@ Financial outcomes that remain uncertain are held for review. `FAILED` alone doe
 The informational return accepts only the order locator from the URL query, discards at most 1 MiB of POST body without interpreting any payment fields, then returns an empty 303 to the native shop return URL. The POST does not load an order or call the gateway; unknown order IDs receive the same redirect. The resumed GET retains native customer/guest authentication and order/shop ownership before authenticated reconciliation. Checkout CSRF remains required. Apply matching request-body limits at the reverse proxy as PHP may buffer input before controller execution.
 
 
-Release 0.1.1 verification: **52 native assertions** on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11, **35 real HTTP assertions**, fresh-request reinstall, PHPStan level 8, PHPCS, Composer audits and standalone artifact/secret checks. Fresh activation was repeated after uninstall without manually clearing platform caches. HTTP tests use a genuine native login by a different synthetic customer and prove order ownership still returns 403; all gateway financial responses are synthetic.
+Release 0.1.2 verification: **53 native assertions** on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11, **35 real HTTP assertions**, fresh-request reinstall, PHPStan level 8, PHPCS, Composer audits and standalone artifact/secret checks. Fresh activation was repeated after uninstall without manually clearing platform caches. HTTP tests use a genuine native login by a different synthetic customer and prove order ownership still returns 403; all gateway financial responses are synthetic.
+
+
+Turkish catalog verification initializes the actual native `tr-TR` locale loader, as a Turkish request does, and asserts both Shop and Admin dictionaries. It does not ask an already-English BO translator to discover an uninitialized locale after installation. The 0.1.2 correction changes test/release metadata only; financial behavior is preserved. `VERSION` is the merchant ZIP version source even when a source publisher strips Composer's optional version field.
