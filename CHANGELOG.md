@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 — 2026-11-01
+
+- Use one exact PHP SDK 1.0.1 version for Composer installation, build validation and bundled metadata.
+
 ## 1.0.0 — 2026-11-01
 
 - Breaking: monetary minor units are canonical integer strings in requests, responses and platform settlement records. Numeric money is rejected; counts, rates and quantities retain their existing types.

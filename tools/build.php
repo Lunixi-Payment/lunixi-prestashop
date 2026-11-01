@@ -5,6 +5,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__);
+$sdkVersion = '1.0.1';
 $version = trim((string) @file_get_contents($root . '/VERSION'));
 if (!preg_match('/^[0-9]+\.[0-9]+\.[0-9]+$/D', $version)) {
     throw new RuntimeException('Invalid or missing release VERSION.');
@@ -58,7 +59,7 @@ removeTree($input);
 removeTree($output);
 mkdir($input, 0755, true);
 mkdir($output, 0755, true);
-$config = ['name' => 'lunixi/prestashop-release-input', 'require' => ['lunixi/php-sdk' => '1.0.1'], 'config' => ['allow-plugins' => false, 'sort-packages' => true]];
+$config = ['name' => 'lunixi/prestashop-release-input', 'require' => ['lunixi/php-sdk' => $sdkVersion], 'config' => ['allow-plugins' => false, 'sort-packages' => true]];
 if ($local !== null) {
     $config['repositories'] = [['type' => 'path', 'url' => realpath($local), 'options' => ['symlink' => false]]];
 }
@@ -87,12 +88,12 @@ foreach ($lock['packages'] as $dependency) {
         break;
     }
 }
-if (!is_array($package) || ltrim($package['version'], 'v') !== '1.0.0') {
-    throw new RuntimeException('The merchant ZIP requires exactly shared SDK 1.0.0.');
+if (!is_array($package) || ltrim($package['version'], 'v') !== $sdkVersion) {
+    throw new RuntimeException('The merchant ZIP requires exactly shared SDK ' . $sdkVersion . '.');
 }
 $reference = $package['source']['reference'] ?? null;
 file_put_contents($output . '/sdk/UPSTREAM.json', json_encode([
-    'name' => 'lunixi/php-sdk', 'version' => '1.0.1',
+    'name' => 'lunixi/php-sdk', 'version' => $sdkVersion,
     'origin' => $local === null ? 'packagist' : 'explicit-reviewed-source',
     'sourceReference' => is_string($reference) && preg_match('/^[a-f0-9]{40}$/D', $reference) ? $reference : null,
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
