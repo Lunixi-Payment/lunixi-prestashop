@@ -2,7 +2,7 @@
 
 # PrestaShop için Lunixi
 
-1.0.2 kurulum ZIP’i [GitHub sürümlerinde](https://github.com/Lunixi-Payment/lunixi-prestashop/releases) kullanılabilir olduğunda onu indirin ve aynı sürümün `SHA256SUMS` dosyasıyla doğrulayın. Paket PHP SDK 1.0.1 gerektirir. [Para sözleşmesi geçişini](MIGRATION-1.0.md) uygulayın; 0.x ZIP’leri önceki sayısal para sözleşmesini kullanır.
+Yayımlanan 1.0.2 kurulum ZIP’ini [GitHub v1.0.2 sürümünden](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v1.0.2) indirin ve aynı sürümün `SHA256SUMS` dosyasıyla doğrulayın. Paket PHP SDK 1.0.1 gerektirir. [Para sözleşmesi geçişini](MIGRATION-1.0.md) uygulayın; 0.x ZIP’leri önceki sayısal para sözleşmesini kullanır.
 
 [English](README.md) · [Türkçe](README.tr.md) · [Dokümantasyon](https://docs.lunixi.com/tr/sdks/prestashop)
 

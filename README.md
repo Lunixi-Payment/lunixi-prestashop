@@ -4,7 +4,7 @@
 
 # Lunixi for PrestaShop
 
-After the 1.0.2 merchant ZIP is available in [GitHub releases](https://github.com/Lunixi-Payment/lunixi-prestashop/releases), download it and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.0.1. Follow the [money-string migration](MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
+Download the published 1.0.2 merchant ZIP from [GitHub Release v1.0.2](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v1.0.2) and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.0.1. Follow the [money-string migration](MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
 
 [English](README.md) · [Türkçe](README.tr.md) · [Documentation](https://docs.lunixi.com/sdks/prestashop)
 
@@ -91,7 +91,7 @@ composer install --working-dir=tools --no-interaction
 php tools/build.php
 ```
 
-The default build resolves `lunixi/php-sdk:1.0.1` after its Packagist publication. Maintainers can instead explicitly supply a reviewed SDK checkout:
+The default build resolves the published `lunixi/php-sdk:1.0.1` package from [Packagist](https://packagist.org/packages/lunixi/php-sdk). Maintainers can instead explicitly supply a reviewed SDK checkout:
 
 ```bash
 php tools/build.php /absolute/path/to/lunixi-php
