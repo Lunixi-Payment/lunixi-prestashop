@@ -109,9 +109,9 @@ final class NativeAcceptance
         $this->ok($order->module === 'lunixipay', 'native PaymentModule order created');
         $this->ok((int) $order->current_state === (int) Configuration::get('LUNIXI_OS_PENDING'), 'order starts unpaid');
         $this->ok((int) $module->pendingOrder($cart)->id === (int) $order->id, 'cart retry creates one order');
-        $this->ok(Bridge::total($order) === 10050, 'native decimal converts exactly');
+        $this->ok(Bridge::total($order) === '10050', 'native decimal converts exactly');
         Storage::pdo()->prepare('UPDATE ps_orders SET total_paid_tax_incl = ? WHERE id_order = ?')->execute(['100.505000', $order->id]);
-        $this->ok(Bridge::total($order) === 10051, 'native exact decimal half-up rounding before minor conversion');
+        $this->ok(Bridge::total($order) === '10051', 'native exact decimal half-up rounding before minor conversion');
         Storage::pdo()->prepare('UPDATE ps_orders SET total_paid_tax_incl = ? WHERE id_order = ?')->execute(['100.50', $order->id]);
         $this->ok(\Lunixi\PrestaShop\Vendor\Lunixi\Sdk\Commerce\Money::exponent('TRY') === 2, 'gateway ISO currency exponent enforced');
         Access::buyer($context, $order);
@@ -186,7 +186,7 @@ final class NativeAcceptance
         $this->rejects(fn() => $bridge->mutate($order, $operation, 'refund', '2000'), 'changed amount under same native id rejected');
         $transport->lag = false;
         $decision = $bridge->mutate($order, $operation, 'refund', '1000');
-        $this->ok($decision->refundedAmount === 1000, 'real gateway mutation reconciled');
+        $this->ok($decision->refundedAmount === '1000', 'real gateway mutation reconciled');
         $this->ok($bridge->operationStatus($order, $operation)['state'] === 'confirmed', 'settlement delta confirms refund');
         $this->ok((int) (new Order($order->id))->current_state === (int) Configuration::get('LUNIXI_OS_PARTIAL_REFUND'), 'native partial refund state');
         $this->ok(Storage::unresolved((int) $order->id, Storage::attempt(Bridge::key($order))) === null, 'no unresolved operation after confirmed refund');

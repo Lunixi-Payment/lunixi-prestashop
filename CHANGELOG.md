@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 — 2026-11-01
+
+- Verify native decimal conversion, rounding and refunds against the canonical string-money contract without weakening strict assertions.
+
 ## 1.0.1 — 2026-11-01
 
 - Use one exact PHP SDK 1.0.1 version for Composer installation, build validation and bundled metadata.
