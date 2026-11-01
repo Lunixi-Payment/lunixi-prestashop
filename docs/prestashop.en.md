@@ -6,13 +6,11 @@ description: Native Lunixi payment module for PrestaShop 8/9 — merchant ZIP, e
 
 # PrestaShop
 
-**Current verified merchant ZIP 0.1.5:** [`lunixipay-0.1.5.zip`](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/lunixipay-0.1.5.zip) · [SHA256SUMS](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/SHA256SUMS) · [Release v0.1.5](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v0.1.5) · [Passing release CI](https://github.com/Lunixi-Payment/lunixi-prestashop/actions/runs/41242113286).
-
-Public ZIP SHA-256: `ee7032eb50ba9c6250bc492be671254ad547c4284c07e4f5cdc6cc5dfc237725`. The downloaded archive passed public checksum, GitHub asset digest and ZIP CRC checks on 1 November 2026. Use this installation package rather than GitHub’s automatic source archive.
+After the 1.0.0 merchant ZIP is available in [GitHub releases](https://github.com/Lunixi-Payment/lunixi-prestashop/releases), download it and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.0.1. Follow the [money-string migration](../MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
 
 `lunixipay` connects PrestaShop's native checkout/order lifecycle to Lunixi. The existing Lunixi form opens on the merchant website by default, with optional hosted checkout; enabled methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in Lunixi. The module never collects PAN/CVV.
 
-The standalone merchant ZIP bundles a namespace-isolated [PHP SDK](/sdks/php). Shared Commerce code owns signing, integer money, durable attempts, webhook authentication, split-parent evidence and safe retries. Merchants do not need Composer.
+The standalone merchant ZIP bundles a namespace-isolated [PHP SDK](/sdks/php). Shared Commerce code owns signing, canonical minor-unit strings, durable attempts, webhook authentication, split-parent evidence and safe retries. Merchants do not need Composer.
 
 ## Requirements and installation
 
@@ -21,7 +19,7 @@ The standalone merchant ZIP bundles a namespace-isolated [PHP SDK](/sdks/php). S
 - HTTPS storefront/webhook, registered Lunixi merchant/key and webhook secret.
 - A separate, backed-up 32-byte server encryption key outside the database/public web root.
 
-Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Verified public 0.1.5 is available above. Publication does not imply PrestaShop Addons approval. The recorded 0.1.3 baseline acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The same 65-assertion native suite also passed on official 8.2.4 in an isolated local PHP 8.3.6/MariaDB fixture. Both official-image native CI jobs remain independent release gates.
+Source: [Lunixi-Payment/lunixi-prestashop](https://github.com/Lunixi-Payment/lunixi-prestashop). Historical 0.1.5 publication evidence is retained below. Publication does not imply PrestaShop Addons approval. The recorded 0.1.3 baseline acceptance ran on PrestaShop 9.2.0 / PHP 8.3.6 / MariaDB 11 with synthetic gateway transport. The same 65-assertion native suite also passed on official 8.2.4 in an isolated local PHP 8.3.6/MariaDB fixture. Both official-image native CI jobs remain independent release gates.
 
 Generate the server key locally:
 
@@ -31,7 +29,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Store it as `LUNIXI_ENCRYPTION_KEY` in the PHP worker environment through your secret manager. Do not derive it from a database/cookie/private/webhook key. Retain it across restarts and upgrades; loss prevents decryption of historical credentials/tokens.
 
-Upload the verified **`lunixipay-0.1.5.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
+Upload the verified **`lunixipay-1.0.0.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
 
 ## Merchant configuration
 
@@ -64,7 +62,7 @@ The adapter creates an unpaid native order, serializes conversion of the cart, r
 The merchant's form determines method availability; no duplicate method toggles are added to PrestaShop. Permit the official form's required origins in your storefront CSP.
 
 > 
-Version 0.1.4 supports one shipping package per cart. Multishipping/multi-package carts are rejected before a financial API call. Reconcile an existing attempt before changing totals, currency, merchant or checkout settings; an expired/missing token does not authorize a fresh charge.
+This version supports one shipping package per cart. Multishipping/multi-package carts are rejected before a financial API call. Reconcile an existing attempt before changing totals, currency, merchant or checkout settings; an expired/missing token does not authorize a fresh charge.
 
 
 Native computing-precision totals use PrestaShop’s exact decimal rounding before minor-unit conversion; currency precision must match the gateway ISO exponent. Half-odd rounding with nonzero sub-minor precision requires manual reconciliation because the native decimal library lacks that mode. Credential rotations retain encrypted history and two previous webhook secrets; a shop with financial history cannot be rebound to another merchant ID.
@@ -109,7 +107,7 @@ php tools/build.php
 php tools/check-artifact.php
 ```
 
-Default builds resolve public `lunixi/php-sdk:0.29.6`. For development, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
+Default builds resolve public `lunixi/php-sdk:1.0.1`. For development, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
 
 Validation includes PHPCS, PHPStan level 8 against an installed native platform, Composer audit, artifact/secret-boundary checks and real native models/database tests with synthetic gateway transport. Tests exercise a real database-trigger rollback, stable retry keys, encrypted storage, ownership/CSRF gates, verified webhook/GET, replay, capture/partial capture/void/refund and uninstall retention. A separate fresh-process test checks reinstall.
 
@@ -137,3 +135,9 @@ Historical 0.1.4 focused form/URL checks: **40 assertions on each of PrestaShop 
 Release 0.1.5 was rebuilt from published Packagist PHP SDK 0.29.6 (source `29fb3ac2f0fdff7a3825e189572c7aef4b212cc1`). Fresh PrestaShop 8.2.4 / PHP 8.1.34 and 9.2.0 / PHP 8.5.12 shops on MariaDB 11.8.6 each passed **70 native assertions, fresh-process reinstall and 35 actual HTTP assertions** against the new ZIP. Native 0.1.4→0.1.5 upgrade preserved hashes of encrypted configuration, attempts, event receipts, orders/payments/history and outbox rows. Separate genuine customer login→cart→address→checkout HTTP tests passed embedded and optional exact-backend-URL hosted modes on both versions; signed webhook/replay/tamper and a single native TRY 100.50 payment were verified using a local TLS provider stand-in. No old 0.1.4 test result is counted as a new-ZIP run.
 
 The public **0.1.5** archive above has all **313 extracted file contents identical** to the final locally accepted ZIP. Its downloaded public checksum, asset digest, CRC and both native-image CI gates passed. Acceptance evidence is native platform + mocked transport; no browser/CDN/card/bank/3DS acceptance is counted.
+
+## Historical release evidence
+
+**Historical verified merchant ZIP 0.1.5:** [`lunixipay-0.1.5.zip`](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/lunixipay-0.1.5.zip) · [SHA256SUMS](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/SHA256SUMS) · [Release v0.1.5](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v0.1.5) · [Passing release CI](https://github.com/Lunixi-Payment/lunixi-prestashop/actions/runs/41242113286).
+
+Public ZIP SHA-256: `ee7032eb50ba9c6250bc492be671254ad547c4284c07e4f5cdc6cc5dfc237725`. The downloaded archive passed public checksum, GitHub asset digest and ZIP CRC checks on 1 November 2026. This receipt applies only to that historical version.

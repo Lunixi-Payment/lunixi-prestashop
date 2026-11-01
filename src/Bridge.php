@@ -29,7 +29,7 @@ final class Bridge
         }
         return $exponent;
     }
-    public static function total(\Order $order): int
+    public static function total(\Order $order): string
     {
         // Read the native DECIMAL column as text; never multiply a PHP float.
         $q = Storage::pdo()->prepare('SELECT total_paid_tax_incl FROM `' . _DB_PREFIX_ . 'orders` WHERE id_order = ?');
@@ -50,7 +50,7 @@ final class Bridge
                 throw new \RuntimeException('Native rounding mode requires manual reconciliation.');
             }
             $rounded = (new \PrestaShop\Decimal\DecimalNumber($decimal))->round($exponent, $modes[(int) $order->round_mode]);
-            return Money::minor($rounded, $exponent);
+            return Money::minor((string) $rounded, $exponent);
         }
     }
     public function start(\Order $order, string $callback): CheckoutSession
@@ -81,7 +81,7 @@ final class Bridge
             $this->apply($order, $decision);
         }, $event);
     }
-    public function mutate(\Order $order, string $id, string $action, ?int $amount): PaymentDecision
+    public function mutate(\Order $order, string $id, string $action, ?string $amount): PaymentDecision
     {
         $nativeId = Storage::operation((int) $order->id, $id, $action, $amount);
         return $this->service->mutate(
@@ -123,7 +123,7 @@ final class Bridge
         }
         $stateKey = ['pending' => 'LUNIXI_OS_PENDING', 'review' => 'LUNIXI_OS_REVIEW', 'authorized' => 'LUNIXI_OS_AUTHORIZED', 'partially_captured' => 'LUNIXI_OS_AUTHORIZED',
                      'paid' => 'PS_OS_PAYMENT', 'partially_refunded' => 'LUNIXI_OS_PARTIAL_REFUND', 'refunded' => 'PS_OS_REFUND', 'failed' => 'PS_OS_ERROR'][$decision->state] ?? 'LUNIXI_OS_REVIEW';
-        if ($decision->state === 'partially_refunded' && $decision->capturedAmount < $decision->chargedAmount) {
+        if ($decision->state === 'partially_refunded' && Money::compare($decision->capturedAmount, $decision->chargedAmount) < 0) {
             $stateKey = 'LUNIXI_OS_AUTHORIZED';
         }
         $state = (int) \Configuration::get($stateKey, null, null, (int) $order->id_shop);
@@ -132,7 +132,7 @@ final class Bridge
         }
         \Lunixipay::$mailTransaction = true;
         try {
-            if (in_array($decision->state, ['paid', 'partially_refunded', 'refunded'], true) && $decision->capturedAmount >= $decision->chargedAmount) {
+            if (in_array($decision->state, ['paid', 'partially_refunded', 'refunded'], true) && Money::compare($decision->capturedAmount, $decision->chargedAmount) >= 0) {
                 $q = Storage::pdo()->prepare('SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'order_payment` WHERE order_reference = ? AND transaction_id = ?');
                 $q->execute([$order->reference, $decision->paymentId]);
                 if ((int) $q->fetchColumn() === 0 && !$order->addOrderPayment(Money::decimal(self::total($order), self::exponent($order)), 'Lunixi', $decision->paymentId, new \Currency((int) $order->id_currency))) {

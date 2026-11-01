@@ -41,7 +41,7 @@ final class Storage
             . ' sent_at BIGINT NULL, created_at BIGINT NOT NULL) ENGINE=InnoDB');
     }
 
-    public static function operation(int $orderId, string $operationId, string $action, ?int $amount): string
+    public static function operation(int $orderId, string $operationId, string $action, ?string $amount): string
     {
         if (!preg_match('/^[a-f0-9]{48}$/D', $operationId) || !in_array($action, ['refund', 'capture', 'void'], true)) {
             throw new \InvalidArgumentException('Invalid native operation.');
@@ -54,7 +54,7 @@ final class Storage
             $q = $pdo->prepare('SELECT * FROM `' . _DB_PREFIX_ . 'lunixi_operations` WHERE operation_id = ? FOR UPDATE');
             $q->execute([$operationId]);
             $row = $q->fetch(\PDO::FETCH_ASSOC);
-            if (!$row || (int) $row['id_order'] !== $orderId || $row['action'] !== $action || ($row['amount'] === null ? null : (int) $row['amount']) !== $amount) {
+            if (!$row || (int) $row['id_order'] !== $orderId || $row['action'] !== $action || ($row['amount'] === null ? null : (string) $row['amount']) !== $amount) {
                 throw new \RuntimeException('Operation identity was already bound to different parameters.');
             }
             $pdo->commit();

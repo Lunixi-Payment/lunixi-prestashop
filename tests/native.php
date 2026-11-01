@@ -34,8 +34,8 @@ final class NativeGateway implements HttpClientInterface
     public ?string $paymentPageUrl = 'https://pay.lunixi.com/payment/server-issued-page-0123456789';
     public array $calls = [];
     public array $intent = [];
-    public int $captured = 0;
-    public int $refunded = 0;
+    public string $captured = '0';
+    public string $refunded = '0';
     public string $status = 'INITIATED';
     public bool $lag = false;
     public bool $failIntent = false;
@@ -58,8 +58,8 @@ final class NativeGateway implements HttpClientInterface
         if ($method === 'POST') {
             $key = $headers['Idempotency-Key'] ?? '';
             if (!isset($this->keys[$key]) && !$this->lag) {
-                if (str_ends_with($path, '/refund')) { $this->refunded += $data['amount']; $this->status = $this->refunded === $this->captured ? 'REFUNDED' : 'PARTIALLY_REFUNDED'; }
-                elseif (str_ends_with($path, '/capture')) { $this->captured += $data['amount']; $this->status = $this->captured === $this->intent['amount'] ? 'CAPTURED' : 'PARTIALLY_CAPTURED'; }
+                if (str_ends_with($path, '/refund')) { $this->refunded = \Lunixi\PrestaShop\Vendor\Lunixi\Sdk\Commerce\Money::add($this->refunded, $data['amount']); $this->status = $this->refunded === $this->captured ? 'REFUNDED' : 'PARTIALLY_REFUNDED'; }
+                elseif (str_ends_with($path, '/capture')) { $this->captured = \Lunixi\PrestaShop\Vendor\Lunixi\Sdk\Commerce\Money::add($this->captured, $data['amount']); $this->status = $this->captured === $this->intent['amount'] ? 'CAPTURED' : 'PARTIALLY_CAPTURED'; }
                 elseif (str_ends_with($path, '/void')) { $this->status = 'VOIDED'; }
                 $this->keys[$key] = true;
             }
@@ -161,7 +161,7 @@ final class NativeAcceptance
         }
         $this->ok(count($module->hookPaymentOptions([])) === 1, 'native PaymentOption rendered');
         $this->ok(!$bridge->reconcile($order)->isPaid(), 'client/browser callback cannot supply success');
-        $transport->status = 'CAPTURED'; $transport->captured = 10050;
+        $transport->status = 'CAPTURED'; $transport->captured = '10050';
         $event = $this->event($bridge, $session->paymentId, 'native-capture-' . $order->id);
         Storage::pdo()->prepare('UPDATE ps_orders SET total_paid_tax_incl = ? WHERE id_order = ?')->execute(['999.00', $order->id]);
         $this->rejects(fn() => $bridge->reconcile($order, $event), 'edited native order cannot be marked paid by historical intent');
@@ -180,12 +180,12 @@ final class NativeAcceptance
         $this->ok((int) Storage::pdo()->query('SELECT COUNT(*) FROM ps_order_payment WHERE order_reference=' . Storage::pdo()->quote($order->reference))->fetchColumn() === 1, 'one native payment after replay');
         $this->ok((int) Storage::pdo()->query('SELECT COUNT(*) FROM ps_lunixi_mail WHERE sent_at IS NULL')->fetchColumn() > 0, 'notification deferred in durable outbox');
         $operation = bin2hex(random_bytes(24)); $transport->lag = true;
-        $bridge->mutate($order, $operation, 'refund', 1000);
+        $bridge->mutate($order, $operation, 'refund', '1000');
         $this->ok($bridge->operationStatus($order, $operation)['state'] !== 'confirmed', 'async refund remains unconfirmed');
-        $this->rejects(fn() => $bridge->mutate($order, bin2hex(random_bytes(24)), 'refund', 1000), 'new refund blocked while uncertain');
-        $this->rejects(fn() => $bridge->mutate($order, $operation, 'refund', 2000), 'changed amount under same native id rejected');
+        $this->rejects(fn() => $bridge->mutate($order, bin2hex(random_bytes(24)), 'refund', '1000'), 'new refund blocked while uncertain');
+        $this->rejects(fn() => $bridge->mutate($order, $operation, 'refund', '2000'), 'changed amount under same native id rejected');
         $transport->lag = false;
-        $decision = $bridge->mutate($order, $operation, 'refund', 1000);
+        $decision = $bridge->mutate($order, $operation, 'refund', '1000');
         $this->ok($decision->refundedAmount === 1000, 'real gateway mutation reconciled');
         $this->ok($bridge->operationStatus($order, $operation)['state'] === 'confirmed', 'settlement delta confirms refund');
         $this->ok((int) (new Order($order->id))->current_state === (int) Configuration::get('LUNIXI_OS_PARTIAL_REFUND'), 'native partial refund state');
@@ -203,11 +203,11 @@ final class NativeAcceptance
         $authorizedTransport->status = 'AUTHORIZED';
         $this->ok($authorizedBridge->reconcile($authorizedOrder)->state === 'authorized', 'authorization stays on hold');
         $capture1 = bin2hex(random_bytes(24));
-        $partial = $authorizedBridge->mutate($authorizedOrder, $capture1, 'capture', 4000);
+        $partial = $authorizedBridge->mutate($authorizedOrder, $capture1, 'capture', '4000');
         $this->ok($partial->state === 'partially_captured' && !$partial->isPaid(), 'partial capture is not fulfillment');
         $this->ok($authorizedBridge->operationStatus($authorizedOrder, $capture1)['state'] === 'confirmed', 'partial capture operation confirmed from delta');
         $this->ok((int) Storage::pdo()->query('SELECT current_state FROM ps_orders WHERE id_order=' . (int) $authorizedOrder->id)->fetchColumn() === (int) Configuration::get('LUNIXI_OS_AUTHORIZED'), 'native partial capture stays on hold');
-        $this->ok($authorizedBridge->mutate($authorizedOrder, bin2hex(random_bytes(24)), 'capture', 6050)->isPaid(), 'remaining native capture completes settlement');
+        $this->ok($authorizedBridge->mutate($authorizedOrder, bin2hex(random_bytes(24)), 'capture', '6050')->isPaid(), 'remaining native capture completes settlement');
         $this->ok((int) Storage::pdo()->query('SELECT COUNT(*) FROM ps_order_payment WHERE order_reference=' . Storage::pdo()->quote($authorizedOrder->reference))->fetchColumn() === 1, 'native captures produce one basket payment');
         // Actual native authorization release; never a browser-paid transition.
         $voidOrder = $module->pendingOrder($this->cart($context));
@@ -318,7 +318,7 @@ final class NativeAcceptance
     }
     private function event(Bridge $bridge, string $paymentId, string $id)
     {
-        $raw = json_encode(['id' => $id, 'type' => 'payment.captured', 'data' => ['intentId' => $paymentId, 'capturedAmountMinor' => 10050]], JSON_THROW_ON_ERROR);
+        $raw = json_encode(['id' => $id, 'type' => 'payment.captured', 'data' => ['intentId' => $paymentId, 'capturedAmountMinor' => '10050']], JSON_THROW_ON_ERROR);
         $timestamp = gmdate('Y-m-d\TH:i:s\Z');
         $signature = hash_hmac('sha256', $id . '.' . $timestamp . '.' . $raw, 'native_webhook_secret');
         return $bridge->webhook($raw, ['x-lunixi-event-id' => $id, 'x-lunixi-event-type' => 'payment.captured',

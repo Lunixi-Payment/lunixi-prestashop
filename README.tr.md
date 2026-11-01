@@ -2,9 +2,7 @@
 
 # PrestaShop için Lunixi
 
-**Doğrulanmış güncel mağaza ZIP’i 0.1.5:** [`lunixipay-0.1.5.zip`](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/lunixipay-0.1.5.zip) · [SHA256SUMS](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/SHA256SUMS) · [Yayın v0.1.5](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v0.1.5) · [Başarılı yayın CI koşumu](https://github.com/Lunixi-Payment/lunixi-prestashop/actions/runs/41242113286).
-
-Public ZIP SHA-256: `ee7032eb50ba9c6250bc492be671254ad547c4284c07e4f5cdc6cc5dfc237725`. İndirilen arşivin checksum, GitHub asset digest ve ZIP CRC kontrolleri 1 Kasım 2026 tarihinde doğrulandı. Otomatik GitHub kaynak arşivi yerine bu kurulum paketini kullanın.
+1.0.0 kurulum ZIP’i [GitHub sürümlerinde](https://github.com/Lunixi-Payment/lunixi-prestashop/releases) kullanılabilir olduğunda onu indirin ve aynı sürümün `SHA256SUMS` dosyasıyla doğrulayın. Paket PHP SDK 1.0.1 gerektirir. [Para sözleşmesi geçişini](MIGRATION-1.0.md) uygulayın; 0.x ZIP’leri önceki sayısal para sözleşmesini kullanır.
 
 [English](README.md) · [Türkçe](README.tr.md) · [Dokümantasyon](https://docs.lunixi.com/tr/sdks/prestashop)
 
@@ -27,7 +25,7 @@ Güncel 0.1.5 kabulü, **MariaDB 11.8.6/InnoDB** üzerinde yeni **PrestaShop 8.2
 ## ZIP kurulumu ve ayarlar
 
 1. Veritabanını ve sunucu secret’larını yedekleyin. Sunucuda `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'` ile anahtar üretin ve PHP worker ortamına `LUNIXI_ENCRYPTION_KEY` olarak kaydedin. Anahtarı başka secret/paroladan türetmeyin; yeniden başlatma ve yükseltmede koruyun. Eski anahtarı kaybetmek geçmiş şifreli bilgileri okunamaz yapar.
-2. **Module Manager → Upload a module** üzerinden derlenen `lunixipay-0.1.5.zip` yükleyip **Lunixi Payments** modülünü kurun. ZIP kökünde `lunixipay/` bulunur. GitHub kaynak ZIP’i kurulum ZIP’i değildir.
+2. **Module Manager → Upload a module** üzerinden derlenen `lunixipay-1.0.0.zip` yükleyip **Lunixi Payments** modülünü kurun. ZIP kökünde `lunixipay/` bulunur. GitHub kaynak ZIP’i kurulum ZIP’i değildir.
 3. Multistore’da tek mağaza seçin. **Merchant ID**, **Key ID**, **Private Ed25519 key**, **Webhook secret**, **Checkout mode** ve isteğe bağlı **ön provizyon** ayarını kaydedin. Ödeme geçmişi oluştuktan sonra mağaza başka merchant ID’ye bağlanamaz. Döndürülen anahtarlar şifreli geçmişte saklanır; rotasyonda mevcut ve iki önceki webhook secret kabul edilir. Secret alanları düzenlemede boş görünür; boş bırakmak mevcut değeri korur. Kayıt için modül düzenleme yetkisi ve admin CSRF gerekir.
 4. Panelin gösterdiği **tam webhook URL’sini**, `shop_id` dahil, Lunixi’ye kaydedin. Dokümante merchant ödeme olaylarına abone olun. Para birimi/ülke/kargo/müşteri grubu kısıtlarını PrestaShop’un native ödeme tercihlerinden yönetin.
 
@@ -82,7 +80,7 @@ composer install --working-dir=tools --no-interaction
 php tools/build.php
 ```
 
-Varsayılan build public registry’deki `lunixi/php-sdk:0.29.6` paketini çözer. Geliştirme için incelenmiş kaynak kopyası açıkça verilebilir:
+Varsayılan build public registry’deki `lunixi/php-sdk:1.0.1` paketini çözer. Geliştirme için incelenmiş kaynak kopyası açıkça verilebilir:
 
 ```bash
 php tools/build.php /tam/yol/lunixi-php
@@ -127,3 +125,9 @@ Varsayılan, mağaza içinde açılan gömülü Lunixi formudur. İsteğe bağl�
 0.1.5 yayımlanmış Packagist PHP SDK 0.29.6’dan yeniden derlendi (kaynak `29fb3ac2f0fdff7a3825e189572c7aef4b212cc1`). MariaDB 11.8.6 kullanan yeni PrestaShop 8.2.4 / PHP 8.1.34 ve 9.2.0 / PHP 8.5.12 mağazalarında yeni ZIP ile ayrı ayrı **70 native assertion, ayrı süreçte yeniden kurulum ve 35 gerçek HTTP assertion** geçti. Native 0.1.4→0.1.5 yükseltmesinde şifreli ayar, deneme, olay, sipariş/ödeme/geçmiş ve outbox kayıtlarının hashleri değişmedi. İki sürümde de gerçek müşteri girişi→sepet→adres→checkout HTTP akışında embedded ve backend’in tam adresine yönlendirme seçenekleri geçti; yerel TLS ödeme servisiyle imzalı webhook/replay/tamper ve tek 100,50 TRY native ödeme doğrulandı. Eski 0.1.4 sonuçları yeni ZIP testi sayılmadı.
 
 Public **0.1.5** arşivindeki **313 dosyanın tamamı**, nihai yerel kabul ZIP’iyle içerik olarak birebir aynıdır. İndirilen arşivin public checksum, asset digest, CRC ve iki native imaj CI kapısı geçti. Kabul, native platform + sentetik transport kapsamındadır; tarayıcı/CDN/kart/banka/3DS kabulü sayılmaz.
+
+## Geçmiş yayın kanıtı
+
+**Geçmiş doğrulanmış mağaza ZIP’i 0.1.5:** [`lunixipay-0.1.5.zip`](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/lunixipay-0.1.5.zip) · [SHA256SUMS](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/download/v0.1.5/SHA256SUMS) · [Yayın v0.1.5](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v0.1.5) · [Başarılı yayın CI koşumu](https://github.com/Lunixi-Payment/lunixi-prestashop/actions/runs/41242113286).
+
+Public ZIP SHA-256: `ee7032eb50ba9c6250bc492be671254ad547c4284c07e4f5cdc6cc5dfc237725`. İndirilen arşivin checksum, GitHub asset digest ve ZIP CRC kontrolleri 1 Kasım 2026 tarihinde doğrulandı. Bu kanıt yalnız ilgili geçmiş sürüm içindir.

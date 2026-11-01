@@ -19,7 +19,7 @@ class Lunixipay extends PaymentModule
     {
         $this->name = 'lunixipay';
         $this->tab = 'payments_gateways';
-        $this->version = '0.1.5';
+        $this->version = '1.0.0';
         $this->author = 'Lunixi';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -218,7 +218,7 @@ class Lunixipay extends PaymentModule
         Runtime::smarty($this->context)->assign(['lunixi_record' => $record, 'lunixi_order_id' => (int) $order->id,
             'lunixi_admin_url' => Runtime::link($this->context)->getAdminLink('AdminLunixiPayments'),
             'lunixi_token' => Tools::getAdminTokenLite('AdminLunixiPayments'), 'lunixi_pending' => $pending, 'lunixi_operation' => $pending['operation_id'] ?? bin2hex(random_bytes(24)),
-            'lunixi_amount' => $pending && $pending['amount'] !== null ? \Lunixi\PrestaShop\Vendor\Lunixi\Sdk\Commerce\Money::decimal((int) $pending['amount'], Bridge::exponent($order)) : '']);
+            'lunixi_amount' => $pending && $pending['amount'] !== null ? \Lunixi\PrestaShop\Vendor\Lunixi\Sdk\Commerce\Money::decimal((string) $pending['amount'], Bridge::exponent($order)) : '']);
         return $this->fetch('module:lunixipay/views/templates/admin/order.tpl');
     }
     /** @param array<string,mixed> $params */

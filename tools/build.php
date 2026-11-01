@@ -58,7 +58,7 @@ removeTree($input);
 removeTree($output);
 mkdir($input, 0755, true);
 mkdir($output, 0755, true);
-$config = ['name' => 'lunixi/prestashop-release-input', 'require' => ['lunixi/php-sdk' => '0.29.6'], 'config' => ['allow-plugins' => false, 'sort-packages' => true]];
+$config = ['name' => 'lunixi/prestashop-release-input', 'require' => ['lunixi/php-sdk' => '1.0.1'], 'config' => ['allow-plugins' => false, 'sort-packages' => true]];
 if ($local !== null) {
     $config['repositories'] = [['type' => 'path', 'url' => realpath($local), 'options' => ['symlink' => false]]];
 }
@@ -67,7 +67,7 @@ run(['composer', 'install', '--no-dev', '--no-interaction', '--prefer-dist', '--
 $packageFiles = [
     'lunixipay.php', 'autoload.php', 'src', 'controllers', 'upgrade', 'views',
     'translations', 'logo.svg', 'logo.png', 'LICENSE', 'README.md', 'README.tr.md',
-    'CHANGELOG.md', 'SECURITY.md', 'UPGRADE.md', 'VERSION',
+    'CHANGELOG.md', 'MIGRATION-1.0.md', 'SECURITY.md', 'UPGRADE.md', 'VERSION',
 ];
 foreach ($packageFiles as $file) {
     if (file_exists($root . '/' . $file)) {
@@ -87,12 +87,12 @@ foreach ($lock['packages'] as $dependency) {
         break;
     }
 }
-if (!is_array($package) || ltrim($package['version'], 'v') !== '0.29.6') {
-    throw new RuntimeException('The merchant ZIP requires exactly shared SDK 0.29.6.');
+if (!is_array($package) || ltrim($package['version'], 'v') !== '1.0.0') {
+    throw new RuntimeException('The merchant ZIP requires exactly shared SDK 1.0.0.');
 }
 $reference = $package['source']['reference'] ?? null;
 file_put_contents($output . '/sdk/UPSTREAM.json', json_encode([
-    'name' => 'lunixi/php-sdk', 'version' => '0.29.6',
+    'name' => 'lunixi/php-sdk', 'version' => '1.0.1',
     'origin' => $local === null ? 'packagist' : 'explicit-reviewed-source',
     'sourceReference' => is_string($reference) && preg_match('/^[a-f0-9]{40}$/D', $reference) ? $reference : null,
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
