@@ -50,6 +50,13 @@ class LunixipayWebhookModuleFrontController extends ModuleFrontController
             $q = Storage::pdo()->prepare('SELECT order_key FROM `' . _DB_PREFIX_ . 'lunixi_attempts` WHERE JSON_UNQUOTE(JSON_EXTRACT(payload, "$.paymentId")) = ?');
             $q->execute([$paymentId]);
             $keys = $q->fetchAll(PDO::FETCH_COLUMN);
+            $orderKey = $event->data()['orderId'] ?? null;
+            if ($keys === [] && is_string($orderKey) && preg_match('/^ps:' . $shopId . ':order:[1-9][0-9]*$/D', $orderKey)) {
+                // Another payment of a reserved order (e.g. a late bank transfer). The SDK proves it by authenticated GET.
+                $q = Storage::pdo()->prepare('SELECT order_key FROM `' . _DB_PREFIX_ . 'lunixi_attempts` WHERE order_key = ?');
+                $q->execute([$orderKey]);
+                $keys = $q->fetchAll(PDO::FETCH_COLUMN);
+            }
             if (count($keys) !== 1 || !preg_match('/^ps:' . $shopId . ':order:([0-9]+)$/D', $keys[0], $match)) {
                 throw new RuntimeException('Unbound payment.');
             }

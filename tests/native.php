@@ -40,6 +40,8 @@ final class NativeGateway implements HttpClientInterface
     public bool $lag = false;
     public bool $failIntent = false;
     public array $keys = [];
+    /** @var array<string,string> other captured payments of the same order: id => captured minor */
+    public array $linked = [];
     public function send(string $method, string $url, array $headers, ?string $body, float $timeout): HttpResponse
     {
         $path = parse_url($url, PHP_URL_PATH);
@@ -64,6 +66,12 @@ final class NativeGateway implements HttpClientInterface
                 $this->keys[$key] = true;
             }
             return $this->json(['data' => ['status' => $this->status]]);
+        }
+        if (isset($this->linked[basename((string) $path)])) {
+            $id = basename((string) $path);
+            return $this->json(['data' => ['id' => $id, 'status' => 'CAPTURED', 'orderId' => $this->intent['orderId'], 'merchantId' => 'native_merchant',
+                'amount' => $this->intent['amount'], 'currency' => $this->intent['currency'], 'metadata' => []],
+                'details' => ['capturedAmount' => $this->linked[$id], 'refundedAmount' => '0']]);
         }
         return $this->json(['data' => ['id' => 'native_intent_' . $this->intent['orderId'], 'status' => $this->status,
             'orderId' => $this->intent['orderId'], 'merchantId' => 'native_merchant', 'amount' => $this->intent['amount'],
@@ -190,6 +198,7 @@ final class NativeAcceptance
         $this->ok($bridge->operationStatus($order, $operation)['state'] === 'confirmed', 'settlement delta confirms refund');
         $this->ok((int) (new Order($order->id))->current_state === (int) Configuration::get('LUNIXI_OS_PARTIAL_REFUND'), 'native partial refund state');
         $this->ok(Storage::unresolved((int) $order->id, Storage::attempt(Bridge::key($order))) === null, 'no unresolved operation after confirmed refund');
+        $this->reviews($module, $context, $seed);
         // Actual native preauthorization -> partial capture -> full capture.
         Settings::save(1, 'native_merchant', 'mk_test_sk_synthetic_native', '', '', 'embedded', true);
         $authorizedOrder = $module->pendingOrder($this->cart($context));
@@ -316,9 +325,57 @@ final class NativeAcceptance
         $this->ok((new ReflectionMethod(Employee::class, 'getAssociatedShops'))->getDeclaringClass()->getName() === 'ObjectModelCore', 'shared native ObjectModel shop-association API used');
         echo 'Native employee ACL: ' . _PS_VERSION_ . ' Employee=' . (new ReflectionClass(Employee::class))->getParentClass()->getFileName() . '; association=' . (new ReflectionMethod(Employee::class, 'getAssociatedShops'))->getFileName() . "\n";
     }
-    private function event(Bridge $bridge, string $paymentId, string $id)
+    /** Late bank transfer (linked payment) and money for a cancelled order: visible review, never an order payment. */
+    private function reviews(Lunixipay $module, Context $context, string $seed): void
     {
-        $raw = json_encode(['id' => $id, 'type' => 'payment.captured', 'data' => ['intentId' => $paymentId, 'capturedAmountMinor' => '10050']], JSON_THROW_ON_ERROR);
+        $messages = fn(Order $order): int => (int) Storage::pdo()->query('SELECT COUNT(*) FROM ps_customer_message m JOIN ps_customer_thread t ON t.id_customer_thread = m.id_customer_thread WHERE m.private = 1 AND m.message LIKE ' . Storage::pdo()->quote('%lunixi-review-%') . ' AND t.id_order = ' . (int) $order->id)->fetchColumn();
+        $payments = fn(Order $order): int => (int) Storage::pdo()->query('SELECT COUNT(*) FROM ps_order_payment WHERE order_reference=' . Storage::pdo()->quote($order->reference))->fetchColumn();
+        $state = fn(Order $order): int => (int) Storage::pdo()->query('SELECT current_state FROM ps_orders WHERE id_order=' . (int) $order->id)->fetchColumn();
+        $bridge = function (NativeGateway $transport) use ($seed): Bridge {
+            return new Bridge(1, new LunixiClient(new SdkConfiguration(['baseUrl' => Settings::GATEWAY, 'keyId' => 'mk_test_sk_synthetic_native',
+                'privateKey' => base64_encode(sodium_crypto_sign_secretkey($seed)), 'maxRetries' => 0]), $transport));
+        };
+        $lateOrder = $module->pendingOrder($this->cart($context));
+        $lateTransport = new NativeGateway();
+        $lateBridge = $bridge($lateTransport);
+        $lateBridge->start($lateOrder, 'https://merchant.example/return');
+        $lateTransport->status = 'EXPIRED';
+        $this->ok($lateBridge->reconcile($lateOrder)->state === 'failed', 'expired bank transfer attempt fails');
+        $this->ok($state($lateOrder) === (int) Configuration::get('PS_OS_ERROR'), 'failed attempt uses the native error state');
+        $latePayment = 'native_late_' . $lateOrder->id;
+        $lateTransport->linked[$latePayment] = '10050';
+        $event = $this->event($lateBridge, $latePayment, 'native-late-' . $lateOrder->id, Bridge::key($lateOrder));
+        $decision = $lateBridge->reconcile($lateOrder, $event);
+        $this->ok($decision->isLinkedPayment() && !$decision->isPaid() && $decision->paymentId === $latePayment, 'late linked payment becomes a review decision');
+        $lateBridge->reconcile($lateOrder, $event);
+        $lateBridge->reconcile($lateOrder, $this->event($lateBridge, $latePayment, 'native-late-again-' . $lateOrder->id, Bridge::key($lateOrder)));
+        $lateOrder->clearCache();
+        $this->ok($state($lateOrder) === (int) Configuration::get('LUNIXI_OS_REVIEW'), 'late linked payment holds the order in review, not paid');
+        $this->ok($payments($lateOrder) === 0, 'late linked payment records no order payment');
+        $this->ok($messages($lateOrder) === 1, 'one private review message across repeated deliveries');
+        $this->ok(Storage::attempt(Bridge::key($lateOrder))['paymentId'] !== $latePayment, 'ledger keeps the bound attempt');
+        $this->ok(Bridge::reviewReason(new Order((int) $lateOrder->id), Storage::attempt(Bridge::key($lateOrder))) === 'linked_payment', 'admin order panel flags the linked payment');
+
+        $closedOrder = $module->pendingOrder($this->cart($context));
+        $closedTransport = new NativeGateway();
+        $closedBridge = $bridge($closedTransport);
+        $closedSession = $closedBridge->start($closedOrder, 'https://merchant.example/return');
+        $closedOrder->setCurrentState((int) Configuration::get('PS_OS_CANCELED'));
+        $closedTransport->status = 'CAPTURED'; $closedTransport->captured = '10050';
+        $closedEvent = $this->event($closedBridge, $closedSession->paymentId, 'native-closed-' . $closedOrder->id);
+        $this->ok($closedBridge->reconcile($closedOrder, $closedEvent)->isPaid(), 'money for a cancelled order is acknowledged without an error');
+        $closedBridge->reconcile($closedOrder, $closedEvent);
+        $closedBridge->reconcile($closedOrder);
+        $closedOrder->clearCache();
+        $this->ok($state($closedOrder) === (int) Configuration::get('PS_OS_CANCELED'), 'cancelled order is never moved to paid');
+        $this->ok($payments($closedOrder) === 0, 'cancelled order records no payment');
+        $this->ok($messages($closedOrder) === 1, 'cancelled order gets one private review message');
+        $this->ok(Bridge::reviewReason(new Order((int) $closedOrder->id), Storage::attempt(Bridge::key($closedOrder))) === 'order_closed', 'admin order panel flags the cancelled order');
+    }
+    private function event(Bridge $bridge, string $paymentId, string $id, ?string $orderId = null)
+    {
+        $data = ['intentId' => $paymentId, 'capturedAmountMinor' => '10050'] + ($orderId === null ? [] : ['orderId' => $orderId]);
+        $raw = json_encode(['id' => $id, 'type' => 'payment.captured', 'data' => $data], JSON_THROW_ON_ERROR);
         $timestamp = gmdate('Y-m-d\TH:i:s\Z');
         $signature = hash_hmac('sha256', $id . '.' . $timestamp . '.' . $raw, 'native_webhook_secret');
         return $bridge->webhook($raw, ['x-lunixi-event-id' => $id, 'x-lunixi-event-type' => 'payment.captured',

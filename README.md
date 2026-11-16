@@ -1,18 +1,18 @@
 <p align="center"><img src=".github/assets/lunixi-logo.svg" width="300" alt="Lunixi"></p>
 
-> Version 1.0.2 uses all money to canonical minor-unit strings. Read [the migration guide](MIGRATION-1.0.md).
+> Version 1.1.0 uses all money to canonical minor-unit strings. Read [the migration guide](MIGRATION-1.0.md).
 
 # Lunixi for PrestaShop
 
-Download the published 1.0.2 merchant ZIP from [GitHub Release v1.0.2](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v1.0.2) and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.0.1. Follow the [money-string migration](MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
+Download the published 1.1.0 merchant ZIP from [GitHub Release v1.1.0](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v1.1.0) and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.6.0. Follow the [money-string migration](MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
 
 [English](README.md) · [Türkçe](README.tr.md) · [Documentation](https://docs.lunixi.com/sdks/prestashop)
 
-Native payment module for **PrestaShop 8.1+ / 9.x**, version **1.0.2**. The existing Lunixi form opens on the merchant website by default; optional hosted checkout uses the validated backend `paymentPageUrl`. Payment methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in the Lunixi dashboard/form. The module never collects PAN/CVV.
+Native payment module for **PrestaShop 8.1+ / 9.x**, version **1.1.0**. The existing Lunixi form opens on the merchant website by default; optional hosted checkout uses the validated backend `paymentPageUrl`. Payment methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in the Lunixi dashboard/form. The module never collects PAN/CVV.
 
 Payment signing, encrypted checkout storage, settlement evidence, split-parent checks, fee correlation, idempotency and webhook replay rules use the shared **Lunixi PHP SDK Commerce kernel**. The release ZIP ships an isolated SDK namespace and standalone autoloader; merchants do **not** need Composer.
 
-The current module bundles PHP SDK 1.0.1. Historical 0.1.5 ZIP and acceptance evidence is retained below.
+The current module bundles PHP SDK 1.6.0. Historical 0.1.5 ZIP and acceptance evidence is retained below.
 
 ## Requirements
 
@@ -34,7 +34,7 @@ Historical 0.1.5 native acceptance used fresh **PrestaShop 8.2.4 / PHP 8.1.34** 
    ```
 
    Store the result in your secret manager. Do not derive it from the webhook secret, private key, database password or cookie key. Keep it stable across upgrades/restarts. Retain old keys during a planned credential/token migration; losing this key makes encrypted historical credentials/tokens unreadable.
-3. Upload the verified `lunixipay-1.0.2.zip` using **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP contains a top-level `lunixipay/` directory. A source ZIP from GitHub is not the merchant installation ZIP.
+3. Upload the verified `lunixipay-1.1.0.zip` using **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP contains a top-level `lunixipay/` directory. A source ZIP from GitHub is not the merchant installation ZIP.
 4. Select one shop when configuring a multistore installation. Save **Merchant ID**, **Key ID**, **Private Ed25519 key**, **Webhook secret**, **Checkout mode** and optional **Authorize first, capture later**. Once payments exist, a shop cannot be rebound to another merchant ID. Rotated credentials remain encrypted in history; current and two previous webhook secrets are accepted during rotation. Secret fields remain blank when editing; blank preserves the saved secret. Only an employee with module-edit permission and a valid admin CSRF token can save.
 5. Register the **exact webhook URL displayed in the configuration panel**, including its `shop_id`, in Lunixi. Subscribe to the documented merchant payment events. Configure payment currency/country/carrier/group availability through PrestaShop's native payment preferences.
 
@@ -72,6 +72,12 @@ php /path/to/shop/modules/lunixipay/tools/cron.php /path/to/shop
 
 It authenticates pending/historical reconciliation reads and drains queued notifications. Use a scheduler and monitor nonzero exits/deferred notices. Email delivery is at least once after commit; a worker crash after sending but before acknowledging may duplicate an email, never a payment transition. Third-party order hooks must use transactional storage and defer external side effects as well.
 
+### Bank transfer waiting period
+
+A bank transfer (havale/EFT/FAST) payment stays processing for 1–3 business days until the money reaches your bank account. The order keeps **Awaiting Lunixi payment** during that time and the module never cancels it; PrestaShop has no automatic cancellation either. Avoid cancelling the order manually while the transfer is pending.
+
+A transfer that arrives late can be accepted by Lunixi as a **new captured payment for the same order**. The module does not record it as an order payment. It adds a private order message (Customer Service thread of the order) and moves an unpaid order to **Lunixi reconciliation required**, which is neither paid nor shipped. Money that arrives for a **cancelled** order is handled the same way, except that the order keeps its cancelled state and stock. The webhook is acknowledged and repeated deliveries add one message. The Lunixi panel on the order page shows the review; accept the payment manually or refund it from the Lunixi panel.
+
 ## Capture, refund and void
 
 The native order view includes a Lunixi panel for **Reconcile**, **Capture**, **Refund** and **Void authorization**. Financial actions require employee order-edit permission, shop association, module controller permission, POST and admin CSRF validation.
@@ -91,13 +97,13 @@ composer install --working-dir=tools --no-interaction
 php tools/build.php
 ```
 
-The default build resolves the published `lunixi/php-sdk:1.0.1` package from [Packagist](https://packagist.org/packages/lunixi/php-sdk). Maintainers can instead explicitly supply a reviewed SDK checkout:
+The default build resolves the published `lunixi/php-sdk:1.6.0` package from [Packagist](https://packagist.org/packages/lunixi/php-sdk). Maintainers can instead explicitly supply a reviewed SDK checkout:
 
 ```bash
 php tools/build.php /absolute/path/to/lunixi-php
 ```
 
-The local path is used only as a build input. It is not included in the ZIP. PHP-Scoper prefixes the bundled SDK as `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; neither unscoped SDK aliases nor the site's Composer autoloader are registered. Build output is `dist/lunixipay-1.0.2.zip`. Review its SHA-256 and source before installation. No secrets, test fixtures, development dependencies or internal source paths are shipped.
+The local path is used only as a build input. It is not included in the ZIP. PHP-Scoper prefixes the bundled SDK as `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; neither unscoped SDK aliases nor the site's Composer autoloader are registered. Build output is `dist/lunixipay-1.1.0.zip`. Review its SHA-256 and source before installation. No secrets, test fixtures, development dependencies or internal source paths are shipped.
 
 ## Checks
 

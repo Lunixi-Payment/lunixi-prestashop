@@ -6,7 +6,7 @@ description: Native Lunixi payment module for PrestaShop 8/9 — merchant ZIP, e
 
 # PrestaShop
 
-After the 1.0.0 merchant ZIP is available in [GitHub releases](https://github.com/Lunixi-Payment/lunixi-prestashop/releases), download it and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.0.1. Follow the [money-string migration](../MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
+After the 1.1.0 merchant ZIP is available in [GitHub releases](https://github.com/Lunixi-Payment/lunixi-prestashop/releases), download it and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.6.0. Follow the [money-string migration](../MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
 
 `lunixipay` connects PrestaShop's native checkout/order lifecycle to Lunixi. The existing Lunixi form opens on the merchant website by default, with optional hosted checkout; enabled methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in Lunixi. The module never collects PAN/CVV.
 
@@ -29,7 +29,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Store it as `LUNIXI_ENCRYPTION_KEY` in the PHP worker environment through your secret manager. Do not derive it from a database/cookie/private/webhook key. Retain it across restarts and upgrades; loss prevents decryption of historical credentials/tokens.
 
-Upload the verified **`lunixipay-1.0.0.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
+Upload the verified **`lunixipay-1.1.0.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
 
 ## Merchant configuration
 
@@ -107,7 +107,7 @@ php tools/build.php
 php tools/check-artifact.php
 ```
 
-Default builds resolve public `lunixi/php-sdk:1.0.1`. For development, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
+Default builds resolve public `lunixi/php-sdk:1.6.0`. For development, provide an explicit reviewed SDK checkout with `php tools/build.php /absolute/path/to/lunixi-php`. The build input path is never exported. PHP-Scoper isolates the SDK under `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; the ZIP has no dependency on sibling sources, unscoped aliases or the site's Composer loader.
 
 Validation includes PHPCS, PHPStan level 8 against an installed native platform, Composer audit, artifact/secret-boundary checks and real native models/database tests with synthetic gateway transport. Tests exercise a real database-trigger rollback, stable retry keys, encrypted storage, ownership/CSRF gates, verified webhook/GET, replay, capture/partial capture/void/refund and uninstall retention. A separate fresh-process test checks reinstall.
 

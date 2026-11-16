@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 — 2026-11-16
+
+- Built on PHP SDK 1.6.0.
+- A late bank transfer that Lunixi accepts as a new captured payment for the same order is now located by its order and recorded as a review: a private order message, the non-paid **Lunixi reconciliation required** state for an unpaid order and a notice in the order page panel. It is never recorded as an order payment; repeated deliveries add one message.
+- Money confirmed for a cancelled order no longer moves it to the paid state. The order keeps its cancelled state and stock, gets the same private review message and the webhook is acknowledged.
+- Document the 1–3 business day bank transfer waiting period; the module does not cancel orders while a transfer is pending.
+- Requires the PHP SDK Commerce change for linked payments (`PaymentDecision::isLinkedPayment()`).
+
 ## 1.0.2 — 2026-11-01
 
 - Verify native decimal conversion, rounding and refunds against the canonical string-money contract without weakening strict assertions.

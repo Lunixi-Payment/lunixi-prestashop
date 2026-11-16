@@ -11,6 +11,8 @@ use Lunixi\PrestaShop\Vendor\Lunixi\Sdk\Webhook\WebhookEvent;
 /** Thin native order adapter; all financial evidence and signing live in the SDK. */
 final class Bridge
 {
+    /** Decisions that hold or carry buyer money. */
+    private const MONEY_STATES = ['authorized', 'partially_captured', 'paid', 'partially_refunded', 'refunded'];
     private CheckoutService $service;
     public function __construct(int $shopId, ?LunixiClient $client = null)
     {
@@ -110,6 +112,17 @@ final class Bridge
         if ($order->module !== 'lunixipay') {
             throw new \RuntimeException('Payment module mismatch.');
         }
+        $cancelled = (int) $order->current_state === (int) \Configuration::get('PS_OS_CANCELED', null, null, (int) $order->id_shop);
+        if ($decision->isLinkedPayment()) {
+            // Another payment of the same order (e.g. a late bank transfer): never recorded as an order payment.
+            $this->review($order, PaymentDecision::REVIEW_LINKED_PAYMENT, $decision, !$cancelled && !(new \OrderState((int) $order->current_state))->paid);
+            return;
+        }
+        if ($cancelled && in_array($decision->state, self::MONEY_STATES, true)) {
+            // A cancelled order keeps its state and stock; the merchant decides about the money.
+            $this->review($order, PaymentDecision::REVIEW_ORDER_CLOSED, $decision, false);
+            return;
+        }
         $query = Storage::pdo()->prepare('SELECT payload FROM `' . _DB_PREFIX_ . 'lunixi_attempts` WHERE order_key = ?');
         $query->execute([self::key($order)]);
         $record = json_decode((string) $query->fetchColumn(), true, 64, JSON_THROW_ON_ERROR);
@@ -139,18 +152,98 @@ final class Bridge
                     throw new \RuntimeException('Native payment could not be saved.');
                 }
             }
-            if ((int) $order->current_state !== $state) {
-                $history = new \OrderHistory();
-                $history->id_order = (int) $order->id;
-                $history->changeIdOrderState($state, $order, true);
-                if (!$history->add()) {
-                    throw new \RuntimeException('Native order history could not be saved.');
-                }
-                // Native status emails are queued as references, not sent pre-commit.
-                MailOutbox::history((int) $history->id, (int) $order->id);
-            }
+            $this->transition($order, $state);
         } finally {
             \Lunixipay::$mailTransaction = false;
+        }
+    }
+
+    /**
+     * Admin order panel flag; the details are in the private order messages.
+     * @param array<string,mixed>|null $record
+     */
+    public static function reviewReason(\Order $order, ?array $record): ?string
+    {
+        foreach ((array) ($record['linkedPayments'] ?? []) as $linked) {
+            if (is_array($linked) && Money::compare((string) ($linked['capturedAmount'] ?? '0'), '0') > 0) {
+                return PaymentDecision::REVIEW_LINKED_PAYMENT;
+            }
+        }
+        $cancelled = (int) $order->current_state === (int) \Configuration::get('PS_OS_CANCELED', null, null, (int) $order->id_shop);
+        return $cancelled && in_array($record['state'] ?? '', self::MONEY_STATES, true) ? PaymentDecision::REVIEW_ORDER_CLOSED : null;
+    }
+
+    private function transition(\Order $order, int $state): void
+    {
+        if ((int) $order->current_state === $state) {
+            return;
+        }
+        $history = new \OrderHistory();
+        $history->id_order = (int) $order->id;
+        $history->changeIdOrderState($state, $order, true);
+        if (!$history->add()) {
+            throw new \RuntimeException('Native order history could not be saved.');
+        }
+        // Native status emails are queued as references, not sent pre-commit.
+        MailOutbox::history((int) $history->id, (int) $order->id);
+    }
+
+    /**
+     * Visible merchant review: a private order message (once per payment balance) and,
+     * when $hold, the non-paid, non-shipping review state. No order payment is recorded.
+     */
+    private function review(\Order $order, string $reason, PaymentDecision $decision, bool $hold): void
+    {
+        $reference = 'lunixi-review-' . substr(hash('sha256', implode("\0", [self::key($order), $reason, $decision->paymentId, $decision->state, $decision->capturedAmount, $decision->refundedAmount])), 0, 24);
+        $q = Storage::pdo()->prepare('SELECT COUNT(*) FROM `' . _DB_PREFIX_ . 'customer_message` m JOIN `' . _DB_PREFIX_ . 'customer_thread` t'
+            . ' ON t.id_customer_thread = m.id_customer_thread WHERE t.id_order = ? AND m.message LIKE ?');
+        $q->execute([(int) $order->id, '%' . $reference . '%']);
+        if ((int) $q->fetchColumn() === 0) {
+            // Whole literals keep the translation keys extractable.
+            // phpcs:disable Generic.Files.LineLength.TooLong
+            $text = $reason === PaymentDecision::REVIEW_LINKED_PAYMENT
+                ? 'Lunixi payment review: another payment of this order (%payment%, %amount%) was captured, for example a late bank transfer. It was not recorded as an order payment. Accept it manually or refund it from the Lunixi panel. Ref: %reference%'
+                : 'Lunixi payment review: payment %payment% (%amount%) arrived for a cancelled order. The order and its stock were not changed and no payment was recorded. Reopen the order manually or refund it from the Lunixi panel. Ref: %reference%';
+            // phpcs:enable Generic.Files.LineLength.TooLong
+            $amount = Money::decimal($decision->capturedAmount, self::exponent($order)) . ' ' . (new \Currency((int) $order->id_currency))->iso_code;
+            $message = \Context::getContext()->getTranslator()->trans($text, ['%payment%' => $decision->paymentId, '%amount%' => $amount, '%reference%' => $reference], 'Modules.Lunixipay.Admin');
+            $customer = new \Customer((int) $order->id_customer);
+            $threadId = (int) \CustomerThread::getIdCustomerThreadByEmailAndIdOrder((string) $customer->email, (int) $order->id);
+            if ($threadId < 1) {
+                $thread = new \CustomerThread();
+                $thread->id_shop = (int) $order->id_shop;
+                $thread->id_lang = (int) $order->id_lang;
+                $thread->id_contact = 0;
+                $thread->id_customer = (int) $order->id_customer;
+                $thread->id_order = (int) $order->id;
+                $thread->email = (string) $customer->email;
+                $thread->status = 'open';
+                $thread->token = \Tools::passwdGen(12);
+                if (!$thread->add()) {
+                    throw new \RuntimeException('Native order review thread could not be saved.');
+                }
+                $threadId = (int) $thread->id;
+            }
+            $note = new \CustomerMessage();
+            $note->id_customer_thread = $threadId;
+            $note->id_employee = 0;
+            $note->message = $message;
+            $note->private = true;
+            if (!$note->add()) {
+                throw new \RuntimeException('Native order review message could not be saved.');
+            }
+        }
+        if ($hold) {
+            $state = (int) \Configuration::get('LUNIXI_OS_REVIEW', null, null, (int) $order->id_shop);
+            if ($state < 1) {
+                throw new \RuntimeException('Native order state is not configured.');
+            }
+            \Lunixipay::$mailTransaction = true;
+            try {
+                $this->transition($order, $state);
+            } finally {
+                \Lunixipay::$mailTransaction = false;
+            }
         }
     }
 }

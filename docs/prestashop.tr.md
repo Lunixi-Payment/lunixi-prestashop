@@ -6,7 +6,7 @@ description: PrestaShop 8/9 için native Lunixi ödeme modülü — kurulum ZIP�
 
 # PrestaShop
 
-1.0.0 kurulum ZIP’i [GitHub sürümlerinde](https://github.com/Lunixi-Payment/lunixi-prestashop/releases) kullanılabilir olduğunda onu indirin ve aynı sürümün `SHA256SUMS` dosyasıyla doğrulayın. Paket PHP SDK 1.0.1 gerektirir. [Para sözleşmesi geçişini](../MIGRATION-1.0.md) uygulayın; 0.x ZIP’leri önceki sayısal para sözleşmesini kullanır.
+1.1.0 kurulum ZIP’i [GitHub sürümlerinde](https://github.com/Lunixi-Payment/lunixi-prestashop/releases) kullanılabilir olduğunda onu indirin ve aynı sürümün `SHA256SUMS` dosyasıyla doğrulayın. Paket PHP SDK 1.6.0 gerektirir. [Para sözleşmesi geçişini](../MIGRATION-1.0.md) uygulayın; 0.x ZIP’leri önceki sayısal para sözleşmesini kullanır.
 
 `lunixipay`, PrestaShop’un native ödeme/sipariş akışını Lunixi’ye bağlar. Mevcut Lunixi formu varsayılan olarak mağaza içinde açılır; yönlendirme isteğe bağlıdır. Açık yöntemler, taksitler, uygun alternatif yöntemler, sigorta ve çoklu kart Lunixi’den yönetilir. Modül PAN/CVV toplamaz.
 
@@ -29,7 +29,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Secret manager üzerinden PHP worker ortamına `LUNIXI_ENCRYPTION_KEY` olarak ekleyin. Veritabanı/cookie/private/webhook anahtarından türetmeyin. Yükseltme ve yeniden başlatmada koruyun; kayıp anahtar geçmiş şifreli bilgileri okunamaz yapar.
 
-**Module Manager → Upload a module** üzerinden doğrulanmış **`lunixipay-1.0.0.zip`** dosyasını yükleyip **Lunixi Payments** modülünü kurun. ZIP kökü `lunixipay/` olmalıdır. GitHub kaynak arşivi, build edilmiş kurulum ZIP’i değildir.
+**Module Manager → Upload a module** üzerinden doğrulanmış **`lunixipay-1.1.0.zip`** dosyasını yükleyip **Lunixi Payments** modülünü kurun. ZIP kökü `lunixipay/` olmalıdır. GitHub kaynak arşivi, build edilmiş kurulum ZIP’i değildir.
 
 ## Üye işyeri ayarları
 
@@ -107,7 +107,7 @@ php tools/build.php
 php tools/check-artifact.php
 ```
 
-Varsayılan build public `lunixi/php-sdk:1.0.1` paketini çözer. Geliştirmede `php tools/build.php /tam/yol/lunixi-php` ile incelenmiş kaynak verin. Build yolu ZIP’e çıkmaz. PHP-Scoper SDK’yı `Lunixi\PrestaShop\Vendor\Lunixi\Sdk` altında izole eder; kardeş kaynak, scope’suz alias veya site genelinde Composer gerektirmez.
+Varsayılan build public `lunixi/php-sdk:1.6.0` paketini çözer. Geliştirmede `php tools/build.php /tam/yol/lunixi-php` ile incelenmiş kaynak verin. Build yolu ZIP’e çıkmaz. PHP-Scoper SDK’yı `Lunixi\PrestaShop\Vendor\Lunixi\Sdk` altında izole eder; kardeş kaynak, scope’suz alias veya site genelinde Composer gerektirmez.
 
 Kontroller PHPCS, gerçek native platform üzerinde PHPStan level 8, Composer audit, ZIP/secret sınır kontrolü ve sentetik gateway’li gerçek platform/veritabanı testlerini içerir. Gerçek DB trigger’ıyla rollback, aynı retry anahtarı, şifreleme, sahiplik/CSRF, webhook/GET, replay, capture/kısmi capture/void/iade ve kaldırmada geçmiş doğrulanır. Yeniden kurulum ayrı PHP sürecinde test edilir.
 

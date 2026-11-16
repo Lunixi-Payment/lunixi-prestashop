@@ -1,4 +1,9 @@
 <div class="card"><div class="card-header">Lunixi</div><div class="card-body">
+{if $lunixi_review == 'linked_payment'}
+<div class="alert alert-warning" role="alert">{l s='Another payment of this order was captured, for example a late bank transfer. It was not recorded as an order payment. Review the private order messages, then accept it manually or refund it from the Lunixi panel.' d='Modules.Lunixipay.Admin'}</div>
+{elseif $lunixi_review == 'order_closed'}
+<div class="alert alert-warning" role="alert">{l s='A payment arrived for this cancelled order. No payment was recorded. Review the private order messages, then reopen the order manually or refund it from the Lunixi panel.' d='Modules.Lunixipay.Admin'}</div>
+{/if}
 {if $lunixi_record}
 <p>{l s='Gateway state' d='Modules.Lunixipay.Admin'}: {$lunixi_record.state|escape:'htmlall':'UTF-8'}</p>
 <p>{l s='Gross charged / refunded (minor units)' d='Modules.Lunixipay.Admin'}: {$lunixi_record.chargedAmount|default:0|escape:'htmlall':'UTF-8'} / {$lunixi_record.refundedAmount|default:0|escape:'htmlall':'UTF-8'}</p>
