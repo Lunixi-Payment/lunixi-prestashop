@@ -6,7 +6,7 @@ description: Native Lunixi payment module for PrestaShop 8/9 — merchant ZIP, e
 
 # PrestaShop
 
-After the 1.1.0 merchant ZIP is available in [GitHub releases](https://github.com/Lunixi-Payment/lunixi-prestashop/releases), download it and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.6.0. Follow the [money-string migration](../MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
+After the 1.1.1 merchant ZIP is available in [GitHub releases](https://github.com/Lunixi-Payment/lunixi-prestashop/releases), download it and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.6.0. Follow the [money-string migration](../MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
 
 `lunixipay` connects PrestaShop's native checkout/order lifecycle to Lunixi. The existing Lunixi form opens on the merchant website by default, with optional hosted checkout; enabled methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in Lunixi. The module never collects PAN/CVV.
 
@@ -29,7 +29,7 @@ php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
 
 Store it as `LUNIXI_ENCRYPTION_KEY` in the PHP worker environment through your secret manager. Do not derive it from a database/cookie/private/webhook key. Retain it across restarts and upgrades; loss prevents decryption of historical credentials/tokens.
 
-Upload the verified **`lunixipay-1.1.0.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
+Upload the verified **`lunixipay-1.1.1.zip`** through **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP root is `lunixipay/`. A GitHub source archive is not the built merchant ZIP.
 
 ## Merchant configuration
 

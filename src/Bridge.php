@@ -206,7 +206,9 @@ final class Bridge
                 : 'Lunixi payment review: payment %payment% (%amount%) arrived for a cancelled order. The order and its stock were not changed and no payment was recorded. Reopen the order manually or refund it from the Lunixi panel. Ref: %reference%';
             // phpcs:enable Generic.Files.LineLength.TooLong
             $amount = Money::decimal($decision->capturedAmount, self::exponent($order)) . ' ' . (new \Currency((int) $order->id_currency))->iso_code;
-            $message = \Context::getContext()->getTranslator()->trans($text, ['%payment%' => $decision->paymentId, '%amount%' => $amount, '%reference%' => $reference], 'Modules.Lunixipay.Admin');
+            $parameters = ['%payment%' => $decision->paymentId, '%amount%' => $amount, '%reference%' => $reference];
+            $context = \Context::getContext();
+            $message = $context !== null ? $context->getTranslator()->trans($text, $parameters, 'Modules.Lunixipay.Admin') : strtr($text, $parameters);
             $customer = new \Customer((int) $order->id_customer);
             $threadId = (int) \CustomerThread::getIdCustomerThreadByEmailAndIdOrder((string) $customer->email, (int) $order->id);
             if ($threadId < 1) {

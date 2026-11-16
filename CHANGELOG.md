@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 — 2026-11-16
+
+- Order review note: fall back to the plain message when no PrestaShop context is available (static analysis).
+
 ## 1.1.0 — 2026-11-16
 
 - Built on PHP SDK 1.6.0.
