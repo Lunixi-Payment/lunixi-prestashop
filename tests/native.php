@@ -436,9 +436,13 @@ final class NativeAcceptance
         // An invoice address without an ID number: the payment form asks for it and saves it on the address.
         $cart = $this->cart($context, '');
         // A native request has its own cookie. Cookie::getSession() keeps the first session it loaded, so a
-        // customer signed in later on the same CLI cookie looks signed out; give this buyer a fresh cookie.
+        // customer signed in later on the same CLI cookie looks signed out; register this buyer's session on a
+        // fresh cookie. Context::updateCustomer() is not used here: it would reset the cart's addresses.
         $context->cookie = new Cookie('lunixi_native_identity_' . (int) $cart->id_customer);
-        $context->updateCustomer(new Customer((int) $cart->id_customer));
+        $context->cookie->id_customer = (int) $context->customer->id;
+        $context->cookie->passwd = $context->customer->passwd;
+        $context->cookie->logged = 1;
+        $context->cookie->registerSession(new CustomerSession());
         $options = $module->hookPaymentOptions([]);
         $this->ok(count($options) === 1, 'native PaymentOption rendered for the signed-in buyer');
         $this->ok(IdentityNumber::requiredForCart($cart) && str_contains((string) $options[0]->getForm(), IdentityNumber::FIELD), 'native payment form renders the ID number field');

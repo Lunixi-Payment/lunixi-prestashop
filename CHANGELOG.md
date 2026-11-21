@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.2 — 2026-11-21
+
+- The 2.0.1 merchant ZIP was not published; this version carries the same module. Native acceptance: the buyer's session is registered on a fresh cookie without resetting the cart's addresses.
+
 ## 2.0.1 — 2026-11-21
 
 - The 2.0.0 merchant ZIP was not published; this version carries the same module. Native acceptance: the payment-form check signs the buyer in on a fresh cookie, as a real request does.
