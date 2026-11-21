@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.3 — 2026-11-21
+
+- The 2.0.2 merchant ZIP was not published; this version carries the same module. Static analysis: the billing country name is read with a string cast (same result for an unknown country).
+
 ## 2.0.2 — 2026-11-21
 
 - The 2.0.1 merchant ZIP was not published; this version carries the same module. Native acceptance: the buyer's session is registered on a fresh cookie without resetting the cart's addresses.

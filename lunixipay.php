@@ -19,7 +19,7 @@ class Lunixipay extends PaymentModule
     {
         $this->name = 'lunixipay';
         $this->tab = 'payments_gateways';
-        $this->version = '2.0.2';
+        $this->version = '2.0.3';
         $this->author = 'Lunixi';
         $this->need_instance = 0;
         $this->bootstrap = true;

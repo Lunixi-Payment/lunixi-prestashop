@@ -2,11 +2,11 @@
 
 # PrestaShop için Lunixi
 
-Yayımlanan 2.0.2 kurulum ZIP’ini [GitHub v2.0.2 sürümünden](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v2.0.2) indirin ve aynı sürümün `SHA256SUMS` dosyasıyla doğrulayın. Paket PHP SDK 2.0.1 gerektirir. [Para sözleşmesi geçişini](MIGRATION-1.0.md) uygulayın; 0.x ZIP’leri önceki sayısal para sözleşmesini kullanır.
+Yayımlanan 2.0.3 kurulum ZIP’ini [GitHub v2.0.3 sürümünden](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v2.0.3) indirin ve aynı sürümün `SHA256SUMS` dosyasıyla doğrulayın. Paket PHP SDK 2.0.1 gerektirir. [Para sözleşmesi geçişini](MIGRATION-1.0.md) uygulayın; 0.x ZIP’leri önceki sayısal para sözleşmesini kullanır.
 
 [English](README.md) · [Türkçe](README.tr.md) · [Dokümantasyon](https://docs.lunixi.com/tr/sdks/prestashop)
 
-**PrestaShop 8.1+ / 9.x** için native ödeme modülü, sürüm **2.0.2**. Mevcut Lunixi formu varsayılan olarak mağaza içinde açılır; backend ödeme adresine yönlendirme isteğe bağlıdır. Açık ödeme yöntemleri, taksitler, uygun alternatif yöntemler, sigorta ve çoklu kart Lunixi paneli/formundan yönetilir. Modül PAN/CVV toplamaz.
+**PrestaShop 8.1+ / 9.x** için native ödeme modülü, sürüm **2.0.3**. Mevcut Lunixi formu varsayılan olarak mağaza içinde açılır; backend ödeme adresine yönlendirme isteğe bağlıdır. Açık ödeme yöntemleri, taksitler, uygun alternatif yöntemler, sigorta ve çoklu kart Lunixi paneli/formundan yönetilir. Modül PAN/CVV toplamaz.
 
 İmza, token, tutar, split-parent kanıtı, ek ücret korelasyonu, idempotency ve webhook kuralları ortak **Lunixi PHP SDK Commerce** çekirdeğindedir. Kurulum ZIP’i namespace ile izole edilmiş SDK ve bağımsız autoloader içerir; mağazada Composer gerekmez.
 
@@ -25,7 +25,7 @@ Tarihsel 0.1.5 kabulü, **MariaDB 11.8.6/InnoDB** üzerinde yeni **PrestaShop 8.
 ## ZIP kurulumu ve ayarlar
 
 1. Veritabanını ve sunucu secret’larını yedekleyin. Sunucuda `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'` ile anahtar üretin ve PHP worker ortamına `LUNIXI_ENCRYPTION_KEY` olarak kaydedin. Anahtarı başka secret/paroladan türetmeyin; yeniden başlatma ve yükseltmede koruyun. Eski anahtarı kaybetmek geçmiş şifreli bilgileri okunamaz yapar.
-2. **Module Manager → Upload a module** üzerinden derlenen `lunixipay-2.0.2.zip` yükleyip **Lunixi Payments** modülünü kurun. ZIP kökünde `lunixipay/` bulunur. GitHub kaynak ZIP’i kurulum ZIP’i değildir.
+2. **Module Manager → Upload a module** üzerinden derlenen `lunixipay-2.0.3.zip` yükleyip **Lunixi Payments** modülünü kurun. ZIP kökünde `lunixipay/` bulunur. GitHub kaynak ZIP’i kurulum ZIP’i değildir.
 3. Multistore’da tek mağaza seçin. **Merchant ID**, **Key ID**, **Private Ed25519 key**, **Webhook secret**, **Checkout mode** ve isteğe bağlı **ön provizyon** ayarını kaydedin. Ödeme geçmişi oluştuktan sonra mağaza başka merchant ID’ye bağlanamaz. Döndürülen anahtarlar şifreli geçmişte saklanır; rotasyonda mevcut ve iki önceki webhook secret kabul edilir. Secret alanları düzenlemede boş görünür; boş bırakmak mevcut değeri korur. Kayıt için modül düzenleme yetkisi ve admin CSRF gerekir.
 4. Panelin gösterdiği **tam webhook URL’sini**, `shop_id` dahil, Lunixi’ye kaydedin. Dokümante merchant ödeme olaylarına abone olun. Para birimi/ülke/kargo/müşteri grubu kısıtlarını PrestaShop’un native ödeme tercihlerinden yönetin.
 
@@ -104,7 +104,7 @@ Varsayılan build public registry’deki `lunixi/php-sdk:2.0.1` paketini çözer
 php tools/build.php /tam/yol/lunixi-php
 ```
 
-Yerel yol yalnız build girdisidir; ZIP’e taşınmaz. PHP-Scoper SDK’yı `Lunixi\PrestaShop\Vendor\Lunixi\Sdk` altında izole eder. Site genelindeki Composer veya scope’suz alias yüklenmez. Çıktı `dist/lunixipay-2.0.2.zip` dosyasıdır.
+Yerel yol yalnız build girdisidir; ZIP’e taşınmaz. PHP-Scoper SDK’yı `Lunixi\PrestaShop\Vendor\Lunixi\Sdk` altında izole eder. Site genelindeki Composer veya scope’suz alias yüklenmez. Çıktı `dist/lunixipay-2.0.3.zip` dosyasıdır.
 
 ```bash
 php tools/vendor/bin/phpcs --standard=phpcs.xml

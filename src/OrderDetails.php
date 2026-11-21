@@ -103,7 +103,8 @@ final class OrderDetails
             'contactName' => $company === '' ? $person : ($person === '' ? $company : $person . ' (' . $company . ')'),
             'address' => implode(', ', array_filter([trim((string) $address->address1), trim((string) $address->address2)], static fn(string $line): bool => $line !== '')),
             'city' => trim((string) $address->city),
-            'country' => is_string($country) ? trim($country) : '',
+            // Country::getNameById() returns false for an unknown country despite its string PHPDoc.
+            'country' => trim((string) $country),
             'zipCode' => trim((string) $address->postcode),
         ];
     }
