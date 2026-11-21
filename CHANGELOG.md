@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1 — 2026-11-21
+
+- The 2.0.0 merchant ZIP was not published; this version carries the same module. Native acceptance: the payment-form check signs the buyer in on a fresh cookie, as a real request does.
+
 ## 2.0.0 — 2026-11-21
 
 - **Breaking:** every payment now carries the order details the payment requires: the buyer, the invoice address, the delivery address for an order with a physical product, and the order lines as basket items. Requires and bundles PHP SDK 2.0.1 (order details on `Commerce\OrderSnapshot`).
