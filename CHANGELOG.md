@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.0 — 2026-11-21
+
+- **Breaking:** every payment now carries the order details the payment requires: the buyer, the invoice address, the delivery address for an order with a physical product, and the order lines as basket items. Requires and bundles PHP SDK 2.0.1 (order details on `Commerce\OrderSnapshot`).
+- Buyer: invoice first and last name, customer email, phone (mobile first), invoice city, country and postal code, the Turkish ID or passport number and the buyer's IP address of the payment request (PrestaShop orders do not store one). Billing address: invoice address lines with the invoice name (and company).
+- Basket: one item per order line with its product name and default category (`General` when it has none), `PHYSICAL` unless the product is virtual. Shipping and gift wrapping are separate `VIRTUAL` items; a free-shipping cart rule leaves out the shipping item. Discounts are spread over the product lines in proportion (never a negative item) and the items add up exactly to the order total. An order whose totals cannot be itemized is not sent for payment.
+- **Turkish ID number / Passport number:** the identification number of the invoice address is used when it is valid. Otherwise the payment option asks for it and saves it on the invoice address; an address that earlier orders use is copied, not changed. 11 digits must be a valid Turkish ID number; a passport number has 5 to 16 letters and digits (the length the address field stores).
+- A cart with missing details (for example no phone number or postal code) returns to the payment step with a message naming them, before any order is created. Personal data is not logged.
+- The order fingerprint of existing attempts is unchanged. The order details are not part of the attempt's identity: an attempt reserved before this release resumes as before.
+
 ## 1.1.1 — 2026-11-16
 
 - Order review note: fall back to the plain message when no PrestaShop context is available (static analysis).

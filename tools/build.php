@@ -5,7 +5,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__);
-$sdkVersion = '1.6.0';
+$sdkVersion = '2.0.1';
 $version = trim((string) @file_get_contents($root . '/VERSION'));
 if (!preg_match('/^[0-9]+\.[0-9]+\.[0-9]+$/D', $version)) {
     throw new RuntimeException('Invalid or missing release VERSION.');

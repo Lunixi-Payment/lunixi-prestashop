@@ -36,7 +36,11 @@ final class Bridge
         // Read the native DECIMAL column as text; never multiply a PHP float.
         $q = Storage::pdo()->prepare('SELECT total_paid_tax_incl FROM `' . _DB_PREFIX_ . 'orders` WHERE id_order = ?');
         $q->execute([(int) $order->id]);
-        $decimal = (string) $q->fetchColumn();
+        return self::minor((string) $q->fetchColumn(), $order);
+    }
+    /** A native DECIMAL text of the order currency in minor units, rounded with the order's native rounding mode. */
+    public static function minor(string $decimal, \Order $order): string
+    {
         $exponent = self::exponent($order);
         try {
             return Money::minor($decimal, $exponent);
@@ -55,11 +59,17 @@ final class Bridge
             return Money::minor((string) $rounded, $exponent);
         }
     }
-    public function start(\Order $order, string $callback): CheckoutSession
+    /**
+     * @param string $buyerIp The buyer's browser IP of this request; PrestaShop orders do not store one.
+     * @throws OrderDetailsException When the order lacks a required order detail; nothing is reserved or sent.
+     */
+    public function start(\Order $order, string $callback, string $buyerIp): CheckoutSession
     {
         $currency = new \Currency((int) $order->id_currency);
         $credentials = Settings::secrets((int) $order->id_shop);
         $snapshot = new OrderSnapshot($credentials['merchantId'], self::key($order), self::total($order), (string) $currency->iso_code);
+        // Outside the snapshot identity: the fingerprint of existing attempts is unchanged.
+        $snapshot = OrderDetails::attach($snapshot, $order, $buyerIp);
         $hosted = Settings::mode((int) $order->id_shop) === 'hosted';
         $preauth = (bool) \Configuration::get('LUNIXI_PREAUTH', null, null, (int) $order->id_shop);
         $locale = (new \Language((int) $order->id_lang))->iso_code === 'tr' ? 'tr' : 'en';

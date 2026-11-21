@@ -7,7 +7,7 @@ if (!defined('_PS_VERSION_')) {
 }
 require_once __DIR__ . '/autoload.php';
 
-use Lunixi\PrestaShop\{Access, Bridge, MailOutbox, Runtime, Settings, Storage};
+use Lunixi\PrestaShop\{Access, Bridge, IdentityNumber, MailOutbox, Runtime, Settings, Storage};
 use PrestaShop\PrestaShop\Core\Payment\PaymentOption;
 
 class Lunixipay extends PaymentModule
@@ -19,7 +19,7 @@ class Lunixipay extends PaymentModule
     {
         $this->name = 'lunixipay';
         $this->tab = 'payments_gateways';
-        $this->version = '1.1.1';
+        $this->version = '2.0.0';
         $this->author = 'Lunixi';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -180,10 +180,16 @@ class Lunixipay extends PaymentModule
         if (!$this->active || !Configuration::get('LUNIXI_CREDENTIALS') || !Runtime::customer($this->context)->isLogged(true)) {
             return [];
         }
+        $action = Runtime::link($this->context)->getModuleLink((string) $this->name, 'checkout', [], true);
+        // The native payment step submits this form; it asks for the ID number only when the invoice address has none.
+        $cart = Runtime::context($this->context)->cart;
+        Runtime::smarty($this->context)->assign(['lunixi_action' => $action, 'lunixi_csrf' => Tools::getToken(false),
+            'lunixi_identity_field' => IdentityNumber::FIELD, 'lunixi_identity_required' => !$cart instanceof Cart || IdentityNumber::requiredForCart($cart)]);
         $option = new PaymentOption();
         $option->setModuleName((string) $this->name)->setCallToActionText($this->trans('Pay securely with Lunixi', [], 'Modules.Lunixipay.Shop'))
-            ->setAction(Runtime::link($this->context)->getModuleLink((string) $this->name, 'checkout', [], true))
+            ->setAction($action)
             ->setInputs([['name' => 'lunixi_csrf', 'type' => 'hidden', 'value' => Tools::getToken(false)]])
+            ->setForm($this->fetch('module:lunixipay/views/templates/front/payment_form.tpl'))
             ->setLogo($this->_path . 'views/img/lunixi.svg')
             ->setAdditionalInformation($this->fetch('module:lunixipay/views/templates/front/option.tpl'));
         return [$option];

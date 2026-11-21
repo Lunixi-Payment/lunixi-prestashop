@@ -24,7 +24,7 @@ if (!$module->id && !$module->install()) { throw new RuntimeException('Native mo
 $module = new Lunixipay();
 if (!$module->id || !$module->active) { throw new RuntimeException('Native module must be installed and active.'); }
 
-use Lunixi\PrestaShop\{Access, Bridge, Settings, Storage};
+use Lunixi\PrestaShop\{Access, Basket, Bridge, IdentityNumber, OrderDetails, OrderDetailsException, Settings, Storage};
 use Lunixi\PrestaShop\Vendor\Lunixi\Sdk\{Configuration as SdkConfiguration, LunixiClient};
 use Lunixi\PrestaShop\Vendor\Lunixi\Sdk\Http\{HttpClientInterface, HttpResponse};
 use Lunixi\PrestaShop\Vendor\Lunixi\Sdk\Commerce\Money;
@@ -136,19 +136,25 @@ final class NativeAcceptance
             'privateKey' => base64_encode(sodium_crypto_sign_secretkey($seed)), 'maxRetries' => 0]), $transport);
         $bridge = new Bridge(1, $sdk);
         $transport->failIntent = true;
-        $this->rejects(fn() => $bridge->start($order, 'https://merchant.example/return'), 'uncertain creation does not mark paid');
+        $this->rejects(fn() => $bridge->start($order, 'https://merchant.example/return', '203.0.113.10'), 'uncertain creation does not mark paid');
         $reserved = Storage::attempt(Bridge::key($order));
         $this->ok($reserved['state'] === 'reserved' && $reserved['key'] !== '', 'attempt reservation committed before network');
         $transport->failIntent = false;
-        $session = $bridge->start($order, 'https://merchant.example/return');
+        $session = $bridge->start($order, 'https://merchant.example/return', '203.0.113.10');
         $this->ok(count(array_unique(array_filter($transport->keys, 'is_string'))) === 1, 'timeout uses same key');
+        $intent = $transport->intent;
+        $this->ok(($intent['buyer']['identityNumber'] ?? null) === '11111111110' && ($intent['buyer']['ip'] ?? null) === '203.0.113.10', 'buyer ID number from the invoice address, IP from the buyer request');
+        $this->ok(array_column($intent['basketItems'] ?? [], 'price') === ['10050'] && ($intent['basketItems'][0]['itemType'] ?? null) === 'VIRTUAL', 'virtual order line is one exact VIRTUAL item');
+        $this->ok(($intent['billingAddress']['contactName'] ?? null) === 'Synthetic Acceptance' && !isset($intent['shippingAddress']), 'virtual order sends the billing address only');
         $this->ok($session->hostedUrl() === $transport->paymentPageUrl, 'exact backend hosted URL used independently of embedded token');
         $record = Storage::attempt(Bridge::key($order));
         $this->ok(!str_contains($record['token'], 'native_checkout'), 'checkout token encrypted');
-        $this->ok($bridge->start($order, 'https://merchant.example/return')->token === $session->token, 'persisted token reused');
+        $this->ok($bridge->start($order, 'https://merchant.example/return', '203.0.113.10')->token === $session->token, 'persisted token reused');
+        $this->ok($bridge->start($order, 'https://merchant.example/return', '198.51.100.7')->token === $session->token, 'another buyer IP on retry keeps the reserved attempt');
+        $this->ok(Storage::attempt(Bridge::key($order))['snapshot'] === ['merchantId' => 'native_merchant', 'orderId' => Bridge::key($order), 'amount' => '10050', 'currency' => (new Currency((int) $order->id_currency))->iso_code], 'snapshot identity excludes the order details');
         $this->ok(!str_contains($record['paymentPageUrl'], 'server-issued-page'), 'backend payment-page URL encrypted');
         $calls = count($transport->calls);
-        $this->ok($bridge->start($order, 'https://merchant.example/return')->hostedUrl() === $session->hostedUrl(), 'persisted backend URL reused exactly');
+        $this->ok($bridge->start($order, 'https://merchant.example/return', '203.0.113.10')->hostedUrl() === $session->hostedUrl(), 'persisted backend URL reused exactly');
         $this->ok(count($transport->calls) === $calls, 'cached URL resume does not create another intent');
         if (getenv('LUNIXI_NATIVE_FORM_ONLY') === '1') {
             $missingOrder = $module->pendingOrder($this->cart($context));
@@ -156,12 +162,12 @@ final class NativeAcceptance
             $missingSdk = new LunixiClient(new SdkConfiguration(['baseUrl' => Settings::GATEWAY, 'keyId' => 'mk_test_sk_synthetic_native',
                 'privateKey' => base64_encode(sodium_crypto_sign_secretkey($seed)), 'maxRetries' => 0]), $missingTransport);
             $missingBridge = new Bridge(1, $missingSdk);
-            $missing = $missingBridge->start($missingOrder, 'https://merchant.example/return');
+            $missing = $missingBridge->start($missingOrder, 'https://merchant.example/return', '203.0.113.10');
             $this->rejects(fn() => $missing->hostedUrl(), 'missing URL cannot be reconstructed from browser token');
             $missingBefore = Storage::attempt(Bridge::key($missingOrder));
             $this->rejects(fn() => Settings::save(1, 'native_merchant', 'mk_test_sk_synthetic_native', '', '', 'invalid-mode', false), 'invalid presentation setting rejected');
             Settings::save(1, 'native_merchant', 'mk_test_sk_synthetic_native', '', '', 'embedded', false);
-            $this->rejects(fn() => $missingBridge->start($missingOrder, 'https://merchant.example/return'), 'mode change cannot replace frozen attempt');
+            $this->rejects(fn() => $missingBridge->start($missingOrder, 'https://merchant.example/return', '203.0.113.10'), 'mode change cannot replace frozen attempt');
             $missingAfter = Storage::attempt(Bridge::key($missingOrder));
             $this->ok($missingBefore['key'] === $missingAfter['key'] && $missingBefore['requestHash'] === $missingAfter['requestHash'], 'mode change preserves exact historical key and hash');
             echo 'Native PrestaShop form contract: ' . $this->assertions . " assertions passed.\n";
@@ -199,6 +205,7 @@ final class NativeAcceptance
         $this->ok((int) (new Order($order->id))->current_state === (int) Configuration::get('LUNIXI_OS_PARTIAL_REFUND'), 'native partial refund state');
         $this->ok(Storage::unresolved((int) $order->id, Storage::attempt(Bridge::key($order))) === null, 'no unresolved operation after confirmed refund');
         $this->reviews($module, $context, $seed);
+        $this->orderDetails($module, $context, $seed);
         // Actual native preauthorization -> partial capture -> full capture.
         Settings::save(1, 'native_merchant', 'mk_test_sk_synthetic_native', '', '', 'embedded', true);
         $authorizedOrder = $module->pendingOrder($this->cart($context));
@@ -206,7 +213,7 @@ final class NativeAcceptance
         $authorizedSdk = new LunixiClient(new SdkConfiguration(['baseUrl' => Settings::GATEWAY, 'keyId' => 'mk_test_sk_synthetic_native',
             'privateKey' => base64_encode(sodium_crypto_sign_secretkey($seed)), 'maxRetries' => 0]), $authorizedTransport);
         $authorizedBridge = new Bridge(1, $authorizedSdk);
-        $embedded = $authorizedBridge->start($authorizedOrder, 'https://merchant.example/return');
+        $embedded = $authorizedBridge->start($authorizedOrder, 'https://merchant.example/return', '203.0.113.10');
         $this->ok($authorizedTransport->intent['preauth'] === true, 'native preauth configuration sent through shared kernel');
         $this->ok(!str_contains($embedded->browserConfig(), 'privateKey'), 'embedded browser config contains no merchant secret');
         $authorizedTransport->status = 'AUTHORIZED';
@@ -224,7 +231,7 @@ final class NativeAcceptance
         $voidSdk = new LunixiClient(new SdkConfiguration(['baseUrl' => Settings::GATEWAY, 'keyId' => 'mk_test_sk_synthetic_native',
             'privateKey' => base64_encode(sodium_crypto_sign_secretkey($seed)), 'maxRetries' => 0]), $voidTransport);
         $voidBridge = new Bridge(1, $voidSdk);
-        $voidBridge->start($voidOrder, 'https://merchant.example/return');
+        $voidBridge->start($voidOrder, 'https://merchant.example/return', '203.0.113.10');
         $voidTransport->status = 'AUTHORIZED'; $voidBridge->reconcile($voidOrder);
         $voidId = bin2hex(random_bytes(24));
         $this->ok($voidBridge->mutate($voidOrder, $voidId, 'void', null)->state === 'failed', 'native void releases authorization');
@@ -338,7 +345,7 @@ final class NativeAcceptance
         $lateOrder = $module->pendingOrder($this->cart($context));
         $lateTransport = new NativeGateway();
         $lateBridge = $bridge($lateTransport);
-        $lateBridge->start($lateOrder, 'https://merchant.example/return');
+        $lateBridge->start($lateOrder, 'https://merchant.example/return', '203.0.113.10');
         $lateTransport->status = 'EXPIRED';
         $this->ok($lateBridge->reconcile($lateOrder)->state === 'failed', 'expired bank transfer attempt fails');
         $this->ok($state($lateOrder) === (int) Configuration::get('PS_OS_ERROR'), 'failed attempt uses the native error state');
@@ -359,7 +366,7 @@ final class NativeAcceptance
         $closedOrder = $module->pendingOrder($this->cart($context));
         $closedTransport = new NativeGateway();
         $closedBridge = $bridge($closedTransport);
-        $closedSession = $closedBridge->start($closedOrder, 'https://merchant.example/return');
+        $closedSession = $closedBridge->start($closedOrder, 'https://merchant.example/return', '203.0.113.10');
         $closedOrder->setCurrentState((int) Configuration::get('PS_OS_CANCELED'));
         $closedTransport->status = 'CAPTURED'; $closedTransport->captured = '10050';
         $closedEvent = $this->event($closedBridge, $closedSession->paymentId, 'native-closed-' . $closedOrder->id);
@@ -372,6 +379,88 @@ final class NativeAcceptance
         $this->ok($messages($closedOrder) === 1, 'cancelled order gets one private review message');
         $this->ok(Bridge::reviewReason(new Order((int) $closedOrder->id), Storage::attempt(Bridge::key($closedOrder))) === 'order_closed', 'admin order panel flags the cancelled order');
     }
+    /** Order details from the native order: buyer, addresses, exact basket; the ID number lives on the invoice address. */
+    private function orderDetails(Lunixipay $module, Context $context, string $seed): void
+    {
+        $this->ok(IdentityNumber::normalize('11111111110') === '11111111110', 'Turkish ID number with valid check digits accepted');
+        $this->ok(IdentityNumber::normalize('11111111111') === null && IdentityNumber::normalize('01111111110') === null, 'Turkish ID number with wrong check digits rejected');
+        $this->ok(IdentityNumber::normalize(' u 1234567 ') === 'U1234567', 'passport number normalized');
+        $this->ok(IdentityNumber::normalize('A12') === null && IdentityNumber::normalize('A1B2-C3D4') === null, 'short or punctuated passport number rejected');
+        $this->ok(Basket::reduce(['6000', '4000'], '10000', '1000') === ['5400', '3600'], 'discount spread over lines in proportion');
+        $this->ok(Basket::reduce(['1', '1', '1'], '3', '2') === ['1', '0', '0'], 'remaining minor units go to the last lines');
+        $line = fn(string $id, string $total, bool $physical = true): array => ['id' => $id, 'name' => 'Synthetic line', 'category' => 'General', 'physical' => $physical, 'total' => $total];
+        $free = Basket::items([$line('1', '10050')], '1000', '0', '1000', true, '10050');
+        $this->ok(array_column($free, 'price') === ['10050'], 'free-shipping rule omits the shipping item');
+        $wrapped = Basket::items([$line('1', '10050')], '1000', '250', '0', false, '11300');
+        $this->ok(array_column($wrapped, 'id') === ['1', Basket::SHIPPING_ID, Basket::WRAPPING_ID] && array_column($wrapped, 'itemType') === ['PHYSICAL', 'VIRTUAL', 'VIRTUAL'], 'shipping and gift wrapping are VIRTUAL items');
+        $this->ok(array_column(Basket::items([$line('1', '3333'), $line('2', '3333')], '0', '0', '0', false, '6667'), 'price') === ['3333', '3334'], 'rounding remainder goes to the last line');
+        foreach ([[[$line('1', '10050')], '0', '0', '0', false, '15000'], [[$line('1', '10050')], '0', '0', '0', false, '9000'], [[], '0', '0', '0', false, '100']] as $case) {
+            try {
+                Basket::items(...$case);
+                $this->ok(false, 'unexplained basket difference accepted');
+            } catch (OrderDetailsException $error) {
+                $this->ok($error->fields() === ['basketItems'], 'unexplained basket difference stops the payment');
+            }
+        }
+
+        $transport = new NativeGateway();
+        $bridge = new Bridge(1, new LunixiClient(new SdkConfiguration(['baseUrl' => Settings::GATEWAY, 'keyId' => 'mk_test_sk_synthetic_native',
+            'privateKey' => base64_encode(sodium_crypto_sign_secretkey($seed)), 'maxRetries' => 0]), $transport));
+        // Physical product, shipping and a discount on a native order.
+        $shipped = $module->pendingOrder($this->cart($context));
+        Storage::pdo()->prepare('UPDATE ps_product p JOIN ps_order_detail od ON od.product_id = p.id_product SET p.is_virtual = 0 WHERE od.id_order = ?')->execute([(int) $shipped->id]);
+        Storage::pdo()->prepare('UPDATE ps_orders SET total_shipping_tax_incl = ?, total_discounts_tax_incl = ?, total_paid_tax_incl = ? WHERE id_order = ?')
+            ->execute(['10.00', '5.00', '105.50', (int) $shipped->id]);
+        $bridge->start($shipped, 'https://merchant.example/return', '203.0.113.10');
+        $intent = $transport->intent;
+        $this->ok($intent['amount'] === '10550' && array_column($intent['basketItems'], 'price') === ['9550', '1000'], 'discount lowers the product line, shipping is its own item, sum equals amount');
+        $this->ok(array_column($intent['basketItems'], 'itemType') === ['PHYSICAL', 'VIRTUAL'] && $intent['basketItems'][0]['category1'] !== '', 'physical line and categorized item');
+        $this->ok(($intent['shippingAddress']['city'] ?? null) === 'Istanbul' && ($intent['shippingAddress']['zipCode'] ?? null) === '34000', 'physical order sends its delivery address');
+        $this->ok(($intent['buyer']['gsmNumber'] ?? null) === '+905550000000' && str_ends_with((string) ($intent['buyer']['email'] ?? ''), '@example.test'), 'buyer phone and email from the native customer');
+
+        $calls = count($transport->calls);
+        $unbalanced = $module->pendingOrder($this->cart($context));
+        Storage::pdo()->prepare('UPDATE ps_orders SET total_paid_tax_incl = ? WHERE id_order = ?')->execute(['150.00', (int) $unbalanced->id]);
+        $noIp = $module->pendingOrder($this->cart($context));
+        foreach ([[$unbalanced, '203.0.113.10', ['basketItems']], [$noIp, 'not-an-ip', ['buyer.ip']]] as [$failing, $ip, $fields]) {
+            try {
+                $bridge->start($failing, 'https://merchant.example/return', $ip);
+                $this->ok(false, 'incomplete order details started a payment');
+            } catch (OrderDetailsException $error) {
+                $this->ok($error->fields() === $fields, 'incomplete order details name the failing path');
+            }
+            $this->ok(Storage::attempt(Bridge::key($failing)) === null, 'nothing reserved for incomplete order details');
+        }
+        $this->ok(count($transport->calls) === $calls, 'nothing sent for incomplete order details');
+
+        // An invoice address without an ID number: the payment form asks for it and saves it on the address.
+        $cart = $this->cart($context, '');
+        $this->ok(IdentityNumber::requiredForCart($cart) && str_contains((string) $module->hookPaymentOptions([])[0]->getForm(), IdentityNumber::FIELD), 'native payment form renders the ID number field');
+        try {
+            IdentityNumber::ensureOnCart($cart, '11111111111');
+            $this->ok(false, 'invalid ID number accepted');
+        } catch (OrderDetailsException $error) {
+            $this->ok($error->fields() === ['buyer.identityNumber'], 'invalid ID number refused before any order');
+        }
+        IdentityNumber::ensureOnCart($cart, '11111111110');
+        $this->ok((new Address((int) $cart->id_address_invoice))->dni === '11111111110' && !IdentityNumber::requiredForCart($cart), 'unused invoice address stores the ID number');
+        $this->rejects(fn() => OrderDetails::assertCart($this->cart($context, '11111111110', ''), '203.0.113.10'), 'missing phone stops checkout before the native order');
+        // An address an earlier order references is copied, never rewritten.
+        $legacy = $module->pendingOrder($this->cart($context, ''));
+        try {
+            $bridge->start($legacy, 'https://merchant.example/return', '203.0.113.10');
+            $this->ok(false, 'order without ID number started a payment');
+        } catch (OrderDetailsException $error) {
+            $this->ok($error->fields() === ['buyer.identityNumber'], 'order without ID number is refused');
+        }
+        $repeat = new Cart(); $repeat->id_customer = (int) $legacy->id_customer; $repeat->id_currency = (int) $legacy->id_currency;
+        $repeat->id_lang = (int) $legacy->id_lang; $repeat->id_shop = 1; $repeat->id_shop_group = 1; $repeat->secure_key = (string) $legacy->secure_key;
+        $repeat->id_address_delivery = (int) $legacy->id_address_delivery; $repeat->id_address_invoice = (int) $legacy->id_address_invoice;
+        if (!$repeat->add()) { throw new RuntimeException('Repeat cart fixture failed.'); }
+        IdentityNumber::ensureOnCart($repeat, '11111111110');
+        $this->ok((int) $repeat->id_address_invoice !== (int) $legacy->id_address_invoice && (new Address((int) $repeat->id_address_invoice))->dni === '11111111110', 'used invoice address copied with the ID number');
+        $this->ok((string) (new Address((int) $legacy->id_address_invoice))->dni === '' && (int) $repeat->id_address_delivery === (int) $legacy->id_address_delivery, 'earlier order and delivery address unchanged');
+    }
     private function event(Bridge $bridge, string $paymentId, string $id, ?string $orderId = null)
     {
         $data = ['intentId' => $paymentId, 'capturedAmountMinor' => '10050'] + ($orderId === null ? [] : ['orderId' => $orderId]);
@@ -381,7 +470,7 @@ final class NativeAcceptance
         return $bridge->webhook($raw, ['x-lunixi-event-id' => $id, 'x-lunixi-event-type' => 'payment.captured',
             'x-lunixi-signature-timestamp' => $timestamp, 'x-lunixi-signature' => 'v2=' . $signature], 1);
     }
-    private function cart(Context $context): Cart
+    private function cart(Context $context, string $dni = '11111111110', string $phone = '+905550000000'): Cart
     {
         $customer = new Customer(); $customer->firstname = 'Synthetic'; $customer->lastname = 'Acceptance';
         $customer->email = 'native-' . bin2hex(random_bytes(8)) . '@example.test'; $customer->passwd = password_hash('test-only-customer-password', PASSWORD_BCRYPT); $customer->active = true;
@@ -390,6 +479,7 @@ final class NativeAcceptance
         $context->cookie->passwd = $customer->passwd; $context->cookie->logged = 1;
         $address = new Address(); $address->id_customer = (int) $customer->id; $address->id_country = (int) Configuration::get('PS_COUNTRY_DEFAULT');
         $address->firstname = 'Synthetic'; $address->lastname = 'Acceptance'; $address->alias = 'test'; $address->address1 = 'Synthetic test address'; $address->city = 'Istanbul'; $address->postcode = '34000';
+        $address->phone_mobile = $phone; $address->dni = $dni;
         if (!$address->add()) { throw new RuntimeException('Address fixture failed.'); }
         $product = new Product(); $product->name = [(int) $context->language->id => 'Synthetic payment fixture'];
         $product->link_rewrite = [(int) $context->language->id => 'synthetic-payment-fixture']; $product->price = '100.50';

@@ -1,18 +1,18 @@
 <p align="center"><img src=".github/assets/lunixi-logo.svg" width="300" alt="Lunixi"></p>
 
-> Version 1.1.1 uses all money to canonical minor-unit strings. Read [the migration guide](MIGRATION-1.0.md).
+> Version 2.0.0 uses all money to canonical minor-unit strings. Read [the migration guide](MIGRATION-1.0.md).
 
 # Lunixi for PrestaShop
 
-Download the published 1.1.1 merchant ZIP from [GitHub Release v1.1.1](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v1.1.1) and verify its matching `SHA256SUMS`. This package requires PHP SDK 1.6.0. Follow the [money-string migration](MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
+Download the published 2.0.0 merchant ZIP from [GitHub Release v2.0.0](https://github.com/Lunixi-Payment/lunixi-prestashop/releases/tag/v2.0.0) and verify its matching `SHA256SUMS`. This package requires PHP SDK 2.0.1. Follow the [money-string migration](MIGRATION-1.0.md); 0.x ZIPs use the previous numeric-money contract.
 
 [English](README.md) · [Türkçe](README.tr.md) · [Documentation](https://docs.lunixi.com/sdks/prestashop)
 
-Native payment module for **PrestaShop 8.1+ / 9.x**, version **1.1.1**. The existing Lunixi form opens on the merchant website by default; optional hosted checkout uses the validated backend `paymentPageUrl`. Payment methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in the Lunixi dashboard/form. The module never collects PAN/CVV.
+Native payment module for **PrestaShop 8.1+ / 9.x**, version **2.0.0**. The existing Lunixi form opens on the merchant website by default; optional hosted checkout uses the validated backend `paymentPageUrl`. Payment methods, installments, eligible alternative methods, insurance and multi-card availability remain managed in the Lunixi dashboard/form. The module never collects PAN/CVV.
 
 Payment signing, encrypted checkout storage, settlement evidence, split-parent checks, fee correlation, idempotency and webhook replay rules use the shared **Lunixi PHP SDK Commerce kernel**. The release ZIP ships an isolated SDK namespace and standalone autoloader; merchants do **not** need Composer.
 
-The current module bundles PHP SDK 1.6.0. Historical 0.1.5 ZIP and acceptance evidence is retained below.
+The current module bundles PHP SDK 2.0.1. Historical 0.1.5 ZIP and acceptance evidence is retained below.
 
 ## Requirements
 
@@ -34,7 +34,7 @@ Historical 0.1.5 native acceptance used fresh **PrestaShop 8.2.4 / PHP 8.1.34** 
    ```
 
    Store the result in your secret manager. Do not derive it from the webhook secret, private key, database password or cookie key. Keep it stable across upgrades/restarts. Retain old keys during a planned credential/token migration; losing this key makes encrypted historical credentials/tokens unreadable.
-3. Upload the verified `lunixipay-1.1.1.zip` using **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP contains a top-level `lunixipay/` directory. A source ZIP from GitHub is not the merchant installation ZIP.
+3. Upload the verified `lunixipay-2.0.0.zip` using **Module Manager → Upload a module**, then install/configure **Lunixi Payments**. The ZIP contains a top-level `lunixipay/` directory. A source ZIP from GitHub is not the merchant installation ZIP.
 4. Select one shop when configuring a multistore installation. Save **Merchant ID**, **Key ID**, **Private Ed25519 key**, **Webhook secret**, **Checkout mode** and optional **Authorize first, capture later**. Once payments exist, a shop cannot be rebound to another merchant ID. Rotated credentials remain encrypted in history; current and two previous webhook secrets are accepted during rotation. Secret fields remain blank when editing; blank preserves the saved secret. Only an employee with module-edit permission and a valid admin CSRF token can save.
 5. Register the **exact webhook URL displayed in the configuration panel**, including its `shop_id`, in Lunixi. Subscribe to the documented merchant payment events. Configure payment currency/country/carrier/group availability through PrestaShop's native payment preferences.
 
@@ -51,6 +51,18 @@ The module creates a native **Awaiting Lunixi payment** order, serializes cart c
 - **Preauthorization:** authorized and partially captured payments remain on hold. Full authenticated settlement is required for a paid transition.
 
 This version accepts **one shipping package per cart**. A multi-package/multishipping cart is rejected before starting a financial request. Finish or reconcile the existing attempt before changing its amount, currency, merchant or checkout settings. A missing/expired token does not authorize a fresh charge. A native pending order can remain after an unsuccessful initialization; reconcile it rather than creating replacement orders/keys blindly.
+
+### Order details
+
+Every payment carries the details the payment requires, read from the native order:
+
+- **Buyer:** invoice first and last name, customer email, phone number (mobile first), invoice city, country and postal code, the Turkish ID or passport number and the buyer's IP address of the payment request.
+- **Billing address:** the invoice address and its name (with the company, when set). **Delivery address:** sent when the order has a physical product.
+- **Basket:** one item per order line (product name, default category, physical unless the product is virtual). Shipping and gift wrapping are separate items. Discounts are spread over the product lines, never sent as a negative item, and the items add up exactly to the order total.
+
+**Turkish ID number / Passport number:** when the invoice address has a valid identification number, it is used. Otherwise the payment option shows a **Turkish ID number / Passport number** field and saves the value on the invoice address. An address used by earlier orders is copied, not changed. To collect the number in the address form instead, enable the identification number for the country under **International → Locations → Countries**.
+
+If a detail is missing, for example the phone number or postal code, the customer returns to the payment step with a message and no order is created. An order whose totals cannot be itemized is not sent for payment. The module does not log personal data.
 
 Native computing-precision totals are rounded with PrestaShop’s exact decimal implementation before integer conversion. Currency precision must match the gateway ISO exponent. Half-odd rounding with nonzero sub-minor precision is rejected for manual reconciliation; the native decimal library does not implement that mode.
 
@@ -97,13 +109,13 @@ composer install --working-dir=tools --no-interaction
 php tools/build.php
 ```
 
-The default build resolves the published `lunixi/php-sdk:1.6.0` package from [Packagist](https://packagist.org/packages/lunixi/php-sdk). Maintainers can instead explicitly supply a reviewed SDK checkout:
+The default build resolves the published `lunixi/php-sdk:2.0.1` package from [Packagist](https://packagist.org/packages/lunixi/php-sdk). Maintainers can instead explicitly supply a reviewed SDK checkout:
 
 ```bash
 php tools/build.php /absolute/path/to/lunixi-php
 ```
 
-The local path is used only as a build input. It is not included in the ZIP. PHP-Scoper prefixes the bundled SDK as `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; neither unscoped SDK aliases nor the site's Composer autoloader are registered. Build output is `dist/lunixipay-1.1.1.zip`. Review its SHA-256 and source before installation. No secrets, test fixtures, development dependencies or internal source paths are shipped.
+The local path is used only as a build input. It is not included in the ZIP. PHP-Scoper prefixes the bundled SDK as `Lunixi\PrestaShop\Vendor\Lunixi\Sdk`; neither unscoped SDK aliases nor the site's Composer autoloader are registered. Build output is `dist/lunixipay-2.0.0.zip`. Review its SHA-256 and source before installation. No secrets, test fixtures, development dependencies or internal source paths are shipped.
 
 ## Checks
 
